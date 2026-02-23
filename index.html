@@ -66,6 +66,8 @@ const etToday=()=>{
 const todayStr=()=>{const d=etToday();const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,"0"),dy=String(d.getDate()).padStart(2,"0");return `${y}-${mo}-${dy}`;};
 const genId=()=>crypto.randomUUID();
 const timeStrToMins=s=>{if(!s)return 30;const[h,m]=(s||'00:30').split(':');return parseInt(h)*60+parseInt(m);};
+const isHex=s=>{if(!s||s.length!==7||s[0]!=="#")return false;for(let i=1;i<7;i++){const c=s[i].toLowerCase();if(!(c>='0'&&c<='9'||c>='a'&&c<='f'))return false;}return true;};
+const hexLum=h=>{if(!isHex(h))return 0;const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255;return .2126*r+.7152*g+.0722*b;};
 const fmtDateFull=d=>new Date(d+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
 const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":");const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?"am":"pm"}`;};
 const t2m=t=>{if(!t)return 9999;const[h,m]=t.split(":");return parseInt(h)*60+parseInt(m);};
@@ -377,7 +379,7 @@ function BucketMgr({buckets,onSave,onClose}){
   const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"📦",label:"",color:null,parentId:null});};
   const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setMenuOpen(null);setConfirmDel(null);};
   const topLevel=list.filter(b=>!b.parentId);
-  const isValidHex=h=>typeof h==="string"&&/^#[0-9A-Fa-f]{6}$/.test(h);
+
   const BucketRow=({b,indent})=>(
     <div style={{marginBottom:4,marginLeft:indent?24:0,position:"relative"}}>
       <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
@@ -407,7 +409,7 @@ function BucketMgr({buckets,onSave,onClose}){
               </div>
               <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:10}}>
                 <div style={{width:26,height:26,borderRadius:6,background:b.color||"#222",border:`1px solid ${BORDER}`,flexShrink:0,boxShadow:b.color?`0 0 8px ${b.color}66`:""}}/>
-                <input defaultValue={b.color||""} onChange={e=>{if(isValidHex(e.target.value))upd(b.id,"color",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
+                <input defaultValue={b.color||""} onChange={e=>{if(isHex(e.target.value))upd(b.id,"color",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
               </div>
               <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:10,marginBottom:8}}>
                 <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>NEST UNDER</div>
