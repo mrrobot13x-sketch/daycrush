@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.10</title>
+<title>DayCrush v1.20</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -143,7 +143,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.9</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.20</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -789,7 +789,6 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
       {!celebrating_&&!isDone&&!bktMainColor&&!accent&&dlShow&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:dlShow.color,borderRadius:"0 3px 3px 0",opacity:.45,zIndex:1}}/>}
       {(celebrating_||isDone)&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:"#30D158",borderRadius:"0 3px 3px 0",zIndex:1,opacity:isDone?.5:1}}/>}
       <div style={{paddingLeft:8,position:"relative",zIndex:1}}>
-        {isOneOff&&!celebrating_&&!isDone&&<div style={{position:"absolute",left:-10,top:"50%",transform:"translateY(-50%)",fontSize:20,color:"#444",lineHeight:1,userSelect:"none",pointerEvents:"none"}}>•</div>}
         <div style={{display:"flex",alignItems:"flex-start",gap:7}}>
           {!readOnly&&<div style={{flexShrink:0,marginTop:2,width:15,height:15,borderRadius:3,border:`1.5px solid ${(celebrating_||isDone)?"#30D158":"#444"}`,background:(celebrating_||isDone)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}
             onClick={e=>{e.stopPropagation();onCheck(task.id);}}
@@ -811,16 +810,21 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
         </div>
         {!celebrating_&&!isDone&&(()=>{
           const isToday=task.dueDate&&daysDiff(task.dueDate)===0;
-          const hasEvent=task.eventDate&&isToday;
+          const hasEvent=!!task.eventDate&&isToday;
           const daysUntil=hasEvent?Math.ceil((new Date(task.eventDate+"T00:00:00")-new Date())/(1000*60*60*24)):null;
-          const showMeta=dlShow||fl||(task.time&&!hideTime)||task.duration||hasEvent;
+          const isCountup=daysUntil!==null&&daysUntil<0;
+          const showMeta=dlShow||fl||(task.time&&!hideTime)||task.duration||hasEvent||isOneOff;
           return showMeta?(
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:5}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:4}}>
               <div style={{display:"flex",alignItems:"center",gap:6,flex:1,flexWrap:"wrap"}}>
+                {isOneOff&&<span style={{fontSize:9,color:"#383838",fontWeight:600,letterSpacing:.4,textTransform:"uppercase",borderRadius:3,padding:"1px 4px",border:"1px solid #2a2a2a"}}>one-off</span>}
                 {task.time&&!hideTime&&<span style={{fontSize:10,color:"#888",fontWeight:500}}>{fmtTime(task.time)}</span>}
                 {dlShow&&<span style={{fontSize:11,color:dlShow.color,fontWeight:dlShow.weight}}>{dlShow.text}</span>}
                 {task.duration&&<span style={{fontSize:10,color:"#666"}}>⏱{task.duration}m</span>}
-                {hasEvent&&daysUntil!==null&&<span style={{fontSize:11,color:daysUntil<=3?"#FF9F0A":LIME,fontWeight:700}}>⏳ {daysUntil===0?"Today!":daysUntil===1?"1 day away":`${daysUntil} days away`}</span>}
+                {hasEvent&&daysUntil!==null&&(isCountup
+                  ?<span style={{fontSize:11,color:"#0A84FF",fontWeight:700}}>📅 {Math.abs(daysUntil)} days since</span>
+                  :<span style={{fontSize:11,color:daysUntil<=3?"#FF9F0A":LIME,fontWeight:700}}>⏳ {daysUntil===0?"Today!":daysUntil===1?"Tomorrow":`${daysUntil} days away`}</span>
+                )}
               </div>
               {fl&&<span style={{fontSize:10,color:isWord?"#4ECDC4":"#333",flexShrink:0,marginLeft:8,fontWeight:isWord?600:400}}>{fl}</span>}
             </div>
@@ -894,9 +898,9 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
     {label:"4th Meal",emoji:"🌙",start:22*60,end:25*60+59},
   ];
 
-  // Auto-open a frame if current time is within 60 min of its start
-  const autoOpen=TF.reduce((acc,fr)=>{acc[fr.label]=nm>=fr.start-60&&nm<=fr.end;return acc;},{});
-  const [frameOpen,setFrameOpen]=useState(autoOpen);
+  // Initial open state: current + past frames open, future frames closed
+  const initOpen=TF.reduce((acc,fr)=>{acc[fr.label]=nm>=fr.start;return acc;},{});
+  const [frameOpen,setFrameOpen]=useState(initOpen);
   const toggleFrame=label=>setFrameOpen(s=>({...s,[label]:!s[label]}));
 
   const Row=({task})=>{
@@ -922,20 +926,42 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
     <div style={{flex:1,paddingLeft:8}}><div style={{height:2,background:`linear-gradient(90deg,${LIME},${LIME}44,transparent)`,borderRadius:2}}/></div>
   </div>);
 
-  const FrameBlock=({frame,frameTasks,nowItems})=>{
+  const FrameBlock=({frame,frameTasks,nowInFrame})=>{
     const open=frameOpen[frame.label];
     const hasPassed=nm>frame.end;
     const isCurrent=nm>=frame.start&&nm<=frame.end;
-    const headerColor=isCurrent?LIME:hasPassed?"#30D158":"#444";
+    const unfinished=frameTasks.filter(t=>!t.done);
+    const allClear=hasPassed&&unfinished.length===0;
+    const hasProblems=hasPassed&&unfinished.length>0;
+    const fmtStart=(()=>{const hr=Math.floor(frame.start/60);const h12=hr===0?12:hr>12?hr-12:hr;const ap=hr>=12?"pm":"am";return `${h12}:00 ${ap}`;})();
+    const headerBg=open?(isCurrent?"#071500":hasPassed?"#0a0a0a":"#111"):"#0c0c0c";
+    const borderColor=isCurrent?"#CAFF4C55":hasProblems?"#FF453A44":allClear?"#30D15844":open?"#333":BORDER;
+    const labelColor=isCurrent?LIME:hasProblems?"#FF453A":allClear?"#30D158":"#ccc";
+    const statusText=isCurrent?"▶ NOW":allClear?"✓ Cleared":hasProblems?`${unfinished.length} unfinished`:open?`${frameTasks.length} tasks`:`${frameTasks.length} task${frameTasks.length!==1?"s":""}`;
+    const statusColor=isCurrent?LIME:allClear?"#30D158":hasProblems?"#FF453A":"#555";
+    const preview=!open&&frameTasks.length>0?frameTasks.slice(0,3).map(t=>t.title||"Untitled").join(" · ")+(frameTasks.length>3?" …":""):"";
+    const rowsWithNow=[];
+    if(open){
+      let nowInserted=false;
+      frameTasks.forEach(t=>{
+        if(!nowInserted&&nowInFrame&&t2m(t.time)>nm){
+          rowsWithNow.push(<NowLine key="now"/>);
+          nowInserted=true;
+        }
+        rowsWithNow.push(<Row key={t.id} task={t}/>);
+      });
+      if(!nowInserted&&nowInFrame)rowsWithNow.push(<NowLine key="now"/>);
+    }
     return(
-      <div style={{marginBottom:4}}>
-        <button onClick={()=>toggleFrame(frame.label)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:open?(isCurrent?"#0d1a00":"#111"):"#0a0a0a",border:`1px solid ${isCurrent?"#CAFF4C33":open?"#333":BORDER}`,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:open?6:0,transition:"all .2s"}}>
-          <span style={{fontSize:11}}>{open?"▾":"▸"}</span>
-          <span style={{fontSize:11,fontWeight:700,color:headerColor,letterSpacing:.5}}>{frame.emoji} {frame.label.toUpperCase()}</span>
-          <span style={{fontSize:10,color:"#333",marginLeft:4}}>{(()=>{const hr=Math.floor(frame.start/60);const min=String(frame.start%60).padStart(2,"0");const h12=hr===0?12:hr>12?hr-12:hr;const ap=hr>=12?"pm":"am";return `${h12}:${min} ${ap}`;})()}</span>
-          <span style={{marginLeft:"auto",fontSize:10,color:hasPassed?"#30D158":isCurrent?LIME:"#333",fontWeight:hasPassed||isCurrent?600:400}}>{hasPassed?"✓ passed":isCurrent?"● now":`${frameTasks.length} task${frameTasks.length!==1?"s":""}`}</span>
+      <div style={{marginBottom:6}}>
+        <button onClick={()=>toggleFrame(frame.label)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:headerBg,border:`1px solid ${borderColor}`,borderRadius:open?8:"8px",padding:"9px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:open?4:0,transition:"all .2s"}}>
+          <span style={{fontSize:14,fontWeight:900,color:open?"#666":"#aaa",minWidth:14,textAlign:"center",lineHeight:1}}>{open?"▾":"▶"}</span>
+          <span style={{fontSize:11,fontWeight:700,color:labelColor,letterSpacing:.5}}>{frame.emoji} {frame.label.toUpperCase()}</span>
+          <span style={{fontSize:9,color:"#333",marginLeft:2}}>{fmtStart}</span>
+          {!open&&preview&&<span style={{fontSize:10,color:"#444",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginLeft:6,textAlign:"left"}}>{preview}</span>}
+          <span style={{marginLeft:"auto",flexShrink:0,fontSize:10,color:statusColor,fontWeight:600}}>{statusText}</span>
         </button>
-        {open&&<div style={{paddingLeft:0}}>{nowItems}{frameTasks.map(t=><Row key={t.id} task={t}/>)}</div>}
+        {open&&<div>{rowsWithNow}</div>}
       </div>
     );
   };
@@ -953,20 +979,20 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
       return items;
     }
     const blocks=[];
-    let nowInserted=false;
+    let nowPlaced=false;
     TF.forEach(frame=>{
       const frameTasks=timed.filter(t=>{const m=t2m(t.time);return m>=frame.start&&m<=frame.end;});
-      if(frameTasks.length===0)return;
-      const nowItems=[];
-      if(!nowInserted&&nm>=frame.start&&nm<=frame.end){nowItems.push(<NowLine key="now"/>);nowInserted=true;}
-      blocks.push(<FrameBlock key={frame.label} frame={frame} frameTasks={frameTasks} nowItems={nowItems}/>);
+      const nowInFrame=nm>=frame.start&&nm<=frame.end;
+      if(nowInFrame)nowPlaced=true;
+      if(frameTasks.length>0||nowInFrame){
+        blocks.push(<FrameBlock key={frame.label} frame={frame} frameTasks={frameTasks} nowInFrame={nowInFrame}/>);
+      }
     });
     const noFrame=timed.filter(t=>{const m=t2m(t.time);return !TF.some(fr=>m>=fr.start&&m<=fr.end);});
     const noFrameItems=[];
-    if(!nowInserted){noFrameItems.push(<NowLine key="now"/>);nowInserted=true;}
+    if(!nowPlaced){noFrameItems.push(<NowLine key="now-nf"/>);}
     noFrame.forEach(t=>noFrameItems.push(<Row key={t.id} task={t}/>));
-    if(noFrameItems.length>1)blocks.push(<div key="noframe">{noFrameItems}</div>);
-    else if(!nowInserted)blocks.push(<NowLine key="now"/>);
+    if(noFrameItems.length>0)blocks.push(<div key="noframe">{noFrameItems}</div>);
     return blocks;
   };
 
