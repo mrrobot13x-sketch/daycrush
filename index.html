@@ -14,18 +14,21 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body,#root{height:100%;background:#000;color:#e8e8e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+:root{--app-bg:#000;--card-bg:#1c1c1e;--col-bg:#111;--border:#2a2a2a;--text:#e8e8e8;--muted:#555;--input-bg:#1a1a1a;--tab-bg:#0a0a0a;--tab-active:#111;--tab-border:#222;--sel-opt-bg:#1a1a1a}
+:root.light{--app-bg:#f0f2f5;--card-bg:#ffffff;--col-bg:#e8eaed;--border:#d0d0d5;--text:#1a1a1a;--muted:#888;--input-bg:#f5f5f7;--tab-bg:#e0e2e6;--tab-active:#fff;--tab-border:#c0c0c8;--sel-opt-bg:#fff}
+html,body,#root{height:100%;background:var(--app-bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;transition:background .2s,color .2s}
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:99px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
 ::-webkit-scrollbar-track{background:transparent}
-select option{background:#1a1a1a;color:#e8e8e8}
+select option{background:var(--sel-opt-bg);color:var(--text)}
 textarea,input,select{color-scheme:dark}
-.tab-bar{display:flex;align-items:flex-end;gap:1px;padding:0 12px;overflow-x:auto;scrollbar-width:none;background:#000}
+.light textarea,.light input,.light select{color-scheme:light}
+.tab-bar{display:flex;align-items:flex-end;gap:1px;padding:0 12px;overflow-x:auto;scrollbar-width:none;background:var(--app-bg)}
 .tab-bar::-webkit-scrollbar{display:none}
-.tab-item{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 14px 7px;min-width:36px;cursor:pointer;background:#0a0a0a;border:1px solid #222;border-bottom:1px solid #2a2a2a;font-family:inherit;color:#555;font-size:12px;font-weight:400;white-space:nowrap;border-radius:7px 7px 0 0;position:relative;bottom:-1px;transition:color .15s,background .15s}
-.tab-item:hover{color:#aaa;background:#111}
-.tab-item.active{background:#111;border-color:#333;border-bottom-color:#111;color:#CAFF4C;font-weight:700;z-index:1}
-.tab-bar-line{height:1px;background:#2a2a2a;flex-shrink:0;z-index:0}
+.tab-item{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 14px 7px;min-width:36px;cursor:pointer;background:var(--tab-bg);border:1px solid var(--tab-border);border-bottom:1px solid var(--border);font-family:inherit;color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap;border-radius:7px 7px 0 0;position:relative;bottom:-1px;transition:color .15s,background .15s}
+.tab-item:hover{color:var(--text);background:var(--tab-active)}
+.tab-item.active{background:var(--tab-active);border-color:var(--tab-border);border-bottom-color:var(--tab-active);color:#CAFF4C;font-weight:700;z-index:1}
+.tab-bar-line{height:1px;background:var(--border);flex-shrink:0;z-index:0}
 .spin{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -37,13 +40,14 @@ const {useState,useEffect,useRef,useCallback,useMemo}=React;
 const SURL='https://hnfvtllodmgsipyuwzsx.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuZnZ0bGxvZG1nc2lweXV3enN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MjgwNzEsImV4cCI6MjA4NzMwNDA3MX0.4YzxxQK9PPPo1qGs9mEb6JhE5Ic6Y3_Lt9CGYtCCZEU';
 const db=supabase.createClient(SURL,SKEY);
-const LIME="#CAFF4C",BORDER="#2a2a2a",TEXT="#e8e8e8",MUTED="#555",CARD_BG="#1c1c1e",COL_BG="#111",BLUE="#1d9bf0";
+const LIME="#CAFF4C",BLUE="#1d9bf0";
+const BORDER="var(--border)",TEXT="var(--text)",MUTED="var(--muted)",CARD_BG="var(--card-bg)",COL_BG="var(--col-bg)";
 const COLS=[{id:"inprogress",label:"IN PROGRESS",accent:"#0A84FF"},{id:"do",label:"DO",accent:LIME},{id:"list",label:"LIST",accent:"#888"}];
 const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0A"},{id:"high",label:"High",emoji:"",color:"#FF453A",dot:"#FF453A"},{id:"normal",label:"Normal",emoji:"",color:MUTED,dot:null},{id:"low",label:"Low",emoji:"",color:"#1d9bf0",dot:"#1d9bf0"}];
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',hideTomorrow:false};
+const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',hideTomorrow:false,lightMode:false};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -368,56 +372,55 @@ function CompLog({log,onChange}){
 function BucketMgr({buckets,onSave,onClose}){
   const SWATCHES=["#FF2D55","#FF453A","#FF6B35","#FF9F0A","#FFD60A","#CAFF4C","#30D158","#4ECDC4","#00C7FF","#0A84FF","#5E5CE6","#BF5AF2","#FF375F","#FF6B9D","#C0392B","#E67E22","#27AE60","#16A085","#2980B9","#8E44AD","#E91E63","#FF5722","#795548","#607D8B"];
   const [list,setList]=useState(buckets.map(b=>({...b}))),[nw,setNw]=useState({emoji:"📦",label:"",color:null,parentId:null});
-  const [expanded,setExpanded]=useState(null),[menuOpen,setMenuOpen]=useState(null),[confirmDel,setConfirmDel]=useState(null);
+  const [menuOpen,setMenuOpen]=useState(null),[confirmDel,setConfirmDel]=useState(null);
   const upd=(id,k,v)=>setList(ls=>ls.map(b=>b.id===id?{...b,[k]:v}:b));
   const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"📦",label:"",color:null,parentId:null});};
   const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setMenuOpen(null);setConfirmDel(null);};
   const topLevel=list.filter(b=>!b.parentId);
   const isValidHex=h=>typeof h==="string"&&/^#[0-9A-Fa-f]{6}$/.test(h);
   const BucketRow=({b,indent})=>(
-    <div style={{marginBottom:4,background:CARD_BG,borderRadius:8,border:`1px solid ${expanded===b.id?"#444":BORDER}`,overflow:"hidden",marginLeft:indent?24:0}}>
-      <div style={{display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
+    <div style={{marginBottom:4,marginLeft:indent?24:0,position:"relative"}}>
+      <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
         {b.color?<div style={{width:10,height:10,borderRadius:"50%",background:b.color,flexShrink:0,boxShadow:`0 0 5px ${b.color}88`}}/>:<div style={{width:10,height:10,borderRadius:"50%",background:"#2a2a2a",flexShrink:0,border:"1px solid #444"}}/>}
         <input value={b.emoji||""} onChange={e=>upd(b.id,"emoji",e.target.value)} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
         <input value={b.label} onChange={e=>upd(b.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
-        <button onClick={()=>setExpanded(x=>x===b.id?null:b.id)} style={{background:"none",border:"none",color:b.color||MUTED,cursor:"pointer",fontSize:12,padding:"2px 4px",flexShrink:0}} title="Color">🎨</button>
         <div style={{position:"relative",flexShrink:0}}>
-          <button onClick={()=>setMenuOpen(m=>m===b.id?null:b.id)} style={{background:"none",border:"none",color:MUTED,cursor:"pointer",fontSize:18,padding:"1px 5px",lineHeight:1,letterSpacing:1}}>⋯</button>
-          {menuOpen===b.id&&(
-            <div style={{position:"absolute",right:0,top:"100%",background:"#1a1a1a",border:"1px solid #444",borderRadius:8,zIndex:99,minWidth:150,boxShadow:"0 8px 24px rgba(0,0,0,.9)"}}>
-              {confirmDel===b.id?(
-                <div style={{padding:"10px 12px"}}>
-                  <div style={{fontSize:11,color:"#FF453A",marginBottom:8,fontWeight:600}}>Delete "{b.label}"?</div>
-                  <div style={{display:"flex",gap:6}}>
-                    <button onClick={()=>{setConfirmDel(null);setMenuOpen(null);}} style={{flex:1,padding:"5px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:11}}>Cancel</button>
-                    <button onClick={()=>del(b.id)} style={{flex:1,padding:"5px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700}}>Delete</button>
-                  </div>
-                </div>
-              ):(
-                <button onClick={()=>setConfirmDel(b.id)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"10px 14px",background:"none",border:"none",cursor:"pointer",color:"#FF453A",fontFamily:"inherit",fontSize:13,textAlign:"left"}} onMouseEnter={e=>e.currentTarget.style.background="#2a0a0a"} onMouseLeave={e=>e.currentTarget.style.background="none"}>🗑 Delete</button>
-              )}
-            </div>
-          )}
+          <button onClick={()=>{setMenuOpen(m=>m===b.id?null:b.id);setConfirmDel(null);}} style={{background:"none",border:"none",color:MUTED,cursor:"pointer",fontSize:18,padding:"1px 6px",lineHeight:1,letterSpacing:1}}>⋯</button>
         </div>
       </div>
-      {expanded===b.id&&(
-        <div style={{padding:"0 10px 10px",borderTop:`1px solid ${BORDER}`}}>
-          <div style={{fontSize:10,color:MUTED,marginBottom:6,marginTop:8,letterSpacing:.5,fontWeight:600}}>CARD COLOR</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
-            <div onClick={()=>upd(b.id,"color",null)} style={{width:22,height:22,borderRadius:5,border:`2px solid ${!b.color?"#fff":BORDER}`,background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:MUTED}}>✕</div>
-            {SWATCHES.map(s=><div key={s} onClick={()=>upd(b.id,"color",s)} style={{width:22,height:22,borderRadius:5,background:s,cursor:"pointer",border:`2px solid ${b.color===s?"#fff":"transparent"}`,transform:b.color===s?"scale(1.15)":"scale(1)",transition:"transform .1s"}}/>)}
-          </div>
-          <div style={{display:"flex",gap:7,alignItems:"center"}}>
-            <div style={{width:26,height:26,borderRadius:6,background:b.color||"#222",border:`1px solid ${BORDER}`,flexShrink:0}}/>
-            <input defaultValue={b.color||""} onChange={e=>{if(isValidHex(e.target.value))upd(b.id,"color",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
-          </div>
-          <div style={{marginTop:8}}>
-            <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>NEST UNDER</div>
-            <select value={b.parentId||""} onChange={e=>upd(b.id,"parentId",e.target.value||null)} style={{width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:TEXT,fontSize:12,fontFamily:"inherit",outline:"none"}}>
-              <option value="">None (top-level)</option>
-              {list.filter(x=>x.id!==b.id&&!x.parentId).map(x=><option key={x.id} value={x.id}>{x.emoji} {x.label}</option>)}
-            </select>
-          </div>
+      {menuOpen===b.id&&(
+        <div style={{position:"absolute",right:0,top:"calc(100% + 2px)",background:"#1a1a1a",border:"1px solid #444",borderRadius:10,zIndex:999,width:240,boxShadow:"0 12px 32px rgba(0,0,0,.95)"}}>
+          {confirmDel===b.id?(
+            <div style={{padding:"12px 14px"}}>
+              <div style={{fontSize:12,color:"#FF453A",marginBottom:10,fontWeight:700}}>Delete "{b.label}"?</div>
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={()=>{setConfirmDel(null);}} style={{flex:1,padding:"6px",borderRadius:6,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:12}}>Cancel</button>
+                <button onClick={()=>del(b.id)} style={{flex:1,padding:"6px",borderRadius:6,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700}}>Delete</button>
+              </div>
+            </div>
+          ):(
+            <div style={{padding:"10px 12px"}}>
+              <div style={{fontSize:10,color:MUTED,marginBottom:7,letterSpacing:.5,fontWeight:600}}>CARD COLOR</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+                <div onClick={()=>upd(b.id,"color",null)} style={{width:22,height:22,borderRadius:5,border:`2px solid ${!b.color?"#fff":BORDER}`,background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:MUTED}}>✕</div>
+                {SWATCHES.map(s=><div key={s} onClick={()=>upd(b.id,"color",s)} style={{width:22,height:22,borderRadius:5,background:s,cursor:"pointer",border:`2px solid ${b.color===s?"#fff":"transparent"}`,transform:b.color===s?"scale(1.15)":"scale(1)",transition:"transform .1s"}}/>)}
+              </div>
+              <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:10}}>
+                <div style={{width:26,height:26,borderRadius:6,background:b.color||"#222",border:`1px solid ${BORDER}`,flexShrink:0,boxShadow:b.color?`0 0 8px ${b.color}66`:""}}/>
+                <input defaultValue={b.color||""} onChange={e=>{if(isValidHex(e.target.value))upd(b.id,"color",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
+              </div>
+              <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:10,marginBottom:8}}>
+                <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>NEST UNDER</div>
+                <select value={b.parentId||""} onChange={e=>upd(b.id,"parentId",e.target.value||null)} style={{width:"100%",padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",outline:"none"}}>
+                  <option value="">None (top-level)</option>
+                  {list.filter(x=>x.id!==b.id&&!x.parentId).map(x=><option key={x.id} value={x.id}>{x.emoji} {x.label}</option>)}
+                </select>
+              </div>
+              <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:8}}>
+                <button onClick={()=>setConfirmDel(b.id)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"7px 4px",background:"none",border:"none",cursor:"pointer",color:"#FF453A",fontFamily:"inherit",fontSize:13,textAlign:"left"}} onMouseEnter={e=>e.currentTarget.style.opacity=".7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>🗑 Delete bucket</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -471,6 +474,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onClose,boardName,us
         {row("Hide low priority","hideLowPriority")}
         {row("Hide DO column when empty","hideEmptyDo")}
         {row("Collapse overdue in Calendar","hideCalOverdue","Calendar view")}
+        {row("Light Mode","lightMode","Appearance","☀️")}
         {row("Hide Tomorrow in Calendar","hideTomorrow","Calendar view")}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 0",borderBottom:`1px solid ${BORDER}`}}>
           <div><div style={{fontSize:13}}>Next day starts at</div><div style={{fontSize:10,color:MUTED,marginTop:2}}>Before this time = still today</div></div>
@@ -728,8 +732,10 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const hasCover=task.coverUrl&&task.coverUrl.trim();
   const bktColor=bkt?.color||null;
   const celebrating_=celebrating;
-  const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bktColor?bktColor+"0d":CARD_BG;
-  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":dlShow?.color==="#FF453A"?"#FF453A44":bktColor?bktColor+"22":BORDER;
+  const isLight=bktColor&&hexLum(bktColor)>0.45;
+  const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bktColor?bktColor:CARD_BG;
+  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":dlShow?.color==="#FF453A"?"#FF453A44":bktColor?"transparent":BORDER;
+  const cardText=bktColor&&!celebrating_&&!isDone?(isLight?"#111":"#fff"):null;
   return(
     <div draggable={!listMode&&!readOnly&&!celebrating_&&!isDone} onDragStart={e=>{e.dataTransfer.effectAllowed="move";onDragStart&&onDragStart(task.id);}} onDragOver={e=>{e.preventDefault();onDragOver&&onDragOver(task.id);}} onDrop={e=>{e.preventDefault();onDrop&&onDrop(task.id);}} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       style={{borderRadius:10,padding:"9px 11px",marginBottom:5,border:`1px solid ${cardBorder}`,opacity:isDragging?.35:isDone?.6:1,cursor:"pointer",position:"relative",overflow:"hidden",transition:"border-color .3s,background .3s",
@@ -751,7 +757,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
             {(celebrating_||isDone)&&<span style={{color:"#000",fontSize:9,fontWeight:900,lineHeight:1}}>✓</span>}
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
-            <div style={{fontSize:13,color:(celebrating_||isDone)?"#30D158":task.priority==="low"?"#aaa":TEXT,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>
+            <div style={{fontSize:13,color:(celebrating_||isDone)?"#30D158":cardText||(task.priority==="low"?"#aaa":TEXT),lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>
               {isOneOff&&<span style={{color:"#555",marginRight:5,fontSize:14,lineHeight:1,verticalAlign:"middle"}}>•</span>}
               {task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}
             </div>
@@ -1189,7 +1195,7 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',hideTomorrow:sr.data.hide_tomorrow||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));}
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',hideTomorrow:sr.data.hide_tomorrow||false,lightMode:sr.data.light_mode||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1310,7 +1316,7 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',hide_tomorrow:s.hideTomorrow||false});};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',hide_tomorrow:s.hideTomorrow||false,light_mode:s.lightMode||false});};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -1360,7 +1366,7 @@ function MainApp({user,board,onBack,onSignOut}){
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            {!readOnly&&<button onClick={()=>{setQuickAddTitle("");setShowQuickAdd(true);}} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
+            {!readOnly&&<button onClick={()=>setShowQuickAdd(true)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
             {/* Bucket dropdown */}
             <BucketDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}/>
           </div>
