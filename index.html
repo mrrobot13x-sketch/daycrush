@@ -43,19 +43,25 @@ const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false};
-// Eastern time with 3am rollover: before 3am still counts as previous day
+const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',hideTomorrow:false};
+// Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
-  // Get current time in ET
   const etStr=now.toLocaleString("en-US",{timeZone:"America/New_York"});
-  const et=new Date(etStr);
-  // If before 3am ET, roll back to previous calendar day
-  if(et.getHours()<3){et.setDate(et.getDate()-1);}
+  return new Date(etStr);
+};
+// rolloverMins: minutes past midnight before we flip to new day (default 30 = 12:30am)
+let _dayStartMins=30;
+const setDayStartMins=m=>{_dayStartMins=m;};
+const etToday=()=>{
+  const et=etNow();
+  const mins=et.getHours()*60+et.getMinutes();
+  if(mins<_dayStartMins){et.setDate(et.getDate()-1);}
   return et;
 };
-const todayStr=()=>{const d=etNow();const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,"0"),dy=String(d.getDate()).padStart(2,"0");return `${y}-${mo}-${dy}`;};
+const todayStr=()=>{const d=etToday();const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,"0"),dy=String(d.getDate()).padStart(2,"0");return `${y}-${mo}-${dy}`;};
 const genId=()=>crypto.randomUUID();
+const timeStrToMins=s=>{if(!s)return 30;const[h,m]=(s||'00:30').split(':');return parseInt(h)*60+parseInt(m);};
 const fmtDateFull=d=>new Date(d+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
 const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":");const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?"am":"pm"}`;};
 const t2m=t=>{if(!t)return 9999;const[h,m]=t.split(":");return parseInt(h)*60+parseInt(m);};
@@ -424,6 +430,13 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onClose,boardName,us
         {row("Hide low priority","hideLowPriority")}
         {row("Hide DO column when empty","hideEmptyDo")}
         {row("Collapse overdue in Calendar","hideCalOverdue","Calendar view")}
+        {row("Hide Tomorrow in Calendar","hideTomorrow","Calendar view")}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 0",borderBottom:`1px solid ${BORDER}`}}>
+          <div><div style={{fontSize:13}}>Next day starts at</div><div style={{fontSize:10,color:MUTED,marginTop:2}}>Before this time = still today</div></div>
+          <select value={settings.dayStartTime||"00:30"} onChange={e=>onChange({...settings,dayStartTime:e.target.value})} style={{padding:"5px 8px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:TEXT,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"}}>
+            {["00:00","00:15","00:30","00:45","01:00","01:30","02:00","02:30","03:00","03:30","04:00"].map(t=>{const[h,m]=t.split(":");const hr=parseInt(h);const lbl=`${hr===0?12:hr}:${m} AM`;return <option key={t} value={t}>{lbl}</option>;})}
+          </select>
+        </div>
         <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
           <button onClick={()=>{onMembers();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>👥 Board Members</button>
@@ -698,7 +711,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
             <div style={{fontSize:13,color:(celebrating_||isDone)?"#30D158":task.priority==="low"?"#aaa":TEXT,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>
-              {isOneOff&&<span style={{color:"#555",marginRight:4,fontSize:10}}>•</span>}
+              {isOneOff&&<span style={{color:"#555",marginRight:5,fontSize:14,lineHeight:1,verticalAlign:"middle"}}>•</span>}
               {task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}
             </div>
           </div>
@@ -764,13 +777,14 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingId,onAddTask,boardId,hideCalOverdue}){
+function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingId,onAddTask,boardId,hideCalOverdue,hideTomorrow}){
   const sb=activeTab==="all";
   const rel=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
   const ov=rel.filter(t=>daysDiff(t.dueDate)<0);
   const td=rel.filter(t=>daysDiff(t.dueDate)===0);
   const timed=[...td.filter(t=>t.time)].sort((a,b)=>t2m(a.time)-t2m(b.time));
   const untimed=td.filter(t=>!t.time);
+  const tmrw=[...tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===1)].sort((a,b)=>t2m(a.time)-t2m(b.time));
   const now=etNow(),nm=now.getHours()*60+now.getMinutes();
   const tdLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   const nmLbl=now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
@@ -809,9 +823,15 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
       <div style={{padding:"0 16px"}}>
         {timed.map(t=><Row key={t.id} task={t}/>)}
         {untimed.length>0&&<>{timed.length>0&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0",paddingLeft:68}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><span style={{fontSize:9,color:"#333",textTransform:"uppercase",whiteSpace:"nowrap"}}>No time set</span><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>}{untimed.map(t=><Row key={t.id} task={t}/>)}</>}
-        {rel.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:"#2a2a2a",fontSize:14}}>Nothing due today 🎉</div>}
+        {rel.length===0&&<div style={{textAlign:"center",padding:"48px 0",fontSize:13,fontWeight:800,letterSpacing:1.5,color:LIME,textTransform:"uppercase"}}>YOU CRUSHED THE DAY! 🎉 PARTY!</div>}
       </div>
       {!readOnly&&<div style={{padding:"10px 16px 0"}}><DayAddCard boardId={boardId} onAdd={onAddTask}/></div>}
+      {!hideTomorrow&&tmrw.length>0&&(
+        <div style={{padding:"0 16px",marginTop:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><div style={{fontSize:10,fontWeight:700,color:"#444",letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>Tomorrow</div><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>
+          {tmrw.map(t=><Row key={t.id} task={t}/>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -1043,7 +1063,7 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false};setSettings(s);setViewMode(s.defaultView||"day");}
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',hideTomorrow:sr.data.hide_tomorrow||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1155,7 +1175,7 @@ function MainApp({user,board,onBack,onSignOut}){
     if(list.length>0)await db.from("buckets").upsert(list.map((b,i)=>({id:b.id,board_id:board.id,emoji:b.emoji,label:b.label,color:b.color||null,sort_order:i})));
   };
 
-  const saveSettings=async s=>{setSettings(s);await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false});};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',hide_tomorrow:s.hideTomorrow||false});};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -1216,7 +1236,7 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       )}
       {viewMode==="list"&&<ListView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingId={celebratingId} onAddTask={addTask} boardId={board.id}/>}
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingId={celebratingId} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue}/>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingId={celebratingId} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} hideTomorrow={settings.hideTomorrow}/>}
       {viewMode==="dur"&&<DurationView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingId={celebratingId} onAddTask={addTask} boardId={board.id}/>}
 
       <div style={{borderTop:`1px solid ${BORDER}`,background:"#000",flexShrink:0}}>
