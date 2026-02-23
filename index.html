@@ -53,7 +53,7 @@ const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',hideTomorrow:false,lightMode:false};
+const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',hideTomorrow:false,lightMode:false,showTimeFrames:false};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -380,7 +380,7 @@ function CompLog({log,onChange}){
 
 function BucketMgr({buckets,onSave,onClose}){
   const SWATCHES=["#FF2D55","#FF453A","#FF6B35","#FF9F0A","#FFD60A","#CAFF4C","#30D158","#4ECDC4","#00C7FF","#0A84FF","#5E5CE6","#BF5AF2","#FF375F","#FF6B9D","#C0392B","#E67E22","#27AE60","#16A085","#2980B9","#8E44AD","#E91E63","#FF5722","#795548","#607D8B"];
-  const [list,setList]=useState(buckets.map(b=>({...b}))),[nw,setNw]=useState({emoji:"📦",label:"",color:null,parentId:null});
+  const [list,setList]=useState(buckets.map(b=>({...b}))),[nw,setNw]=useState({emoji:"📦",label:"",mainColor:null,bgColor:null,parentId:null});
   const [menuOpen,setMenuOpen]=useState(null),[confirmDel,setConfirmDel]=useState(null);
   const upd=(id,k,v)=>setList(ls=>ls.map(b=>b.id===id?{...b,[k]:v}:b));
   const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"📦",label:"",color:null,parentId:null});};
@@ -390,7 +390,7 @@ function BucketMgr({buckets,onSave,onClose}){
   const BucketRow=({b,indent})=>(
     <div style={{marginBottom:4,marginLeft:indent?24:0,position:"relative"}}>
       <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
-        {b.color?<div style={{width:10,height:10,borderRadius:"50%",background:b.color,flexShrink:0,boxShadow:`0 0 5px ${b.color}88`}}/>:<div style={{width:10,height:10,borderRadius:"50%",background:"#2a2a2a",flexShrink:0,border:"1px solid #444"}}/>}
+        {b.mainColor?<div style={{width:10,height:10,borderRadius:"50%",background:b.mainColor,flexShrink:0,boxShadow:`0 0 5px ${b.mainColor}88`}}/>:<div style={{width:10,height:10,borderRadius:"50%",background:"#2a2a2a",flexShrink:0,border:"1px solid #444"}}/>}
         <input value={b.emoji||""} onChange={e=>upd(b.id,"emoji",e.target.value)} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
         <input value={b.label} onChange={e=>upd(b.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
         <div style={{position:"relative",flexShrink:0}}>
@@ -409,14 +409,25 @@ function BucketMgr({buckets,onSave,onClose}){
             </div>
           ):(
             <div style={{padding:"10px 12px"}}>
-              <div style={{fontSize:10,color:MUTED,marginBottom:7,letterSpacing:.5,fontWeight:600}}>CARD COLOR</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
-                <div onClick={()=>upd(b.id,"color",null)} style={{width:22,height:22,borderRadius:5,border:`2px solid ${!b.color?"#fff":BORDER}`,background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:MUTED}}>✕</div>
-                {SWATCHES.map(s=><div key={s} onClick={()=>upd(b.id,"color",s)} style={{width:22,height:22,borderRadius:5,background:s,cursor:"pointer",border:`2px solid ${b.color===s?"#fff":"transparent"}`,transform:b.color===s?"scale(1.15)":"scale(1)",transition:"transform .1s"}}/>)}
+              <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>ACCENT COLOR (bars + right edge)</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
+                <div onClick={()=>upd(b.id,"mainColor",null)} style={{width:20,height:20,borderRadius:4,border:`2px solid ${!b.mainColor?"#fff":BORDER}`,background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:MUTED}}>✕</div>
+                {SWATCHES.map(s=><div key={s} onClick={()=>upd(b.id,"mainColor",s)} style={{width:20,height:20,borderRadius:4,background:s,cursor:"pointer",border:`2px solid ${b.mainColor===s?"#fff":"transparent"}`,transform:b.mainColor===s?"scale(1.2)":"scale(1)",transition:"transform .1s"}}/>)}
               </div>
               <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:10}}>
-                <div style={{width:26,height:26,borderRadius:6,background:b.color||"#222",border:`1px solid ${BORDER}`,flexShrink:0,boxShadow:b.color?`0 0 8px ${b.color}66`:""}}/>
-                <input defaultValue={b.color||""} onChange={e=>{if(isHex(e.target.value))upd(b.id,"color",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
+                <div style={{width:24,height:24,borderRadius:5,background:b.mainColor||"#222",border:`1px solid ${BORDER}`,flexShrink:0,boxShadow:b.mainColor?`0 0 8px ${b.mainColor}66`:""}}/>
+                <input defaultValue={b.mainColor||""} onChange={e=>{if(isHex(e.target.value))upd(b.id,"mainColor",e.target.value);}} placeholder="#FF2D55" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
+              </div>
+              <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:8,marginBottom:5}}>
+                <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>BG COLOR (card background)</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
+                  <div onClick={()=>upd(b.id,"bgColor",null)} style={{width:20,height:20,borderRadius:4,border:`2px solid ${!b.bgColor?"#fff":BORDER}`,background:"#111",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:MUTED}}>✕</div>
+                  {SWATCHES.map(s=>{const dim=s+"33";return(<div key={s} onClick={()=>upd(b.id,"bgColor",s)} style={{width:20,height:20,borderRadius:4,background:dim,cursor:"pointer",border:`2px solid ${b.bgColor===s?"#fff":"transparent"}`,transform:b.bgColor===s?"scale(1.2)":"scale(1)",transition:"transform .1s",boxShadow:`inset 0 0 0 2px ${s}55`}}/>);})}
+                </div>
+                <div style={{display:"flex",gap:7,alignItems:"center"}}>
+                  <div style={{width:24,height:24,borderRadius:5,background:b.bgColor?b.bgColor+"33":"#222",border:`1px solid ${BORDER}`,flexShrink:0}}/>
+                  <input defaultValue={b.bgColor||""} onChange={e=>{if(isHex(e.target.value))upd(b.id,"bgColor",e.target.value);}} placeholder="none = default" maxLength={7} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,outline:"none",fontFamily:"monospace",letterSpacing:.5}}/>
+                </div>
               </div>
               <div style={{borderTop:`1px solid ${BORDER}`,paddingTop:10,marginBottom:8}}>
                 <div style={{fontSize:10,color:MUTED,marginBottom:5,letterSpacing:.5,fontWeight:600}}>NEST UNDER</div>
@@ -499,6 +510,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onClose,boardName,us
         {row("Hide DO column when empty","hideEmptyDo","Board view")}
         {row("Collapse overdue tasks","hideCalOverdue","Calendar view")}
         {row("Hide Tomorrow section","hideTomorrow","Calendar view")}
+        {row("Show Time Frames","showTimeFrames","Calendar view (Morning / Afternoon / Night)")}
         <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
           <button onClick={()=>{onMembers();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>👥 Board Members</button>
@@ -748,12 +760,14 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const cbColor=pi.dot||"#444";
   const cbRadius=hasFreq?3:50;
   const hasCover=task.coverUrl&&task.coverUrl.trim();
-  const bktColor=bkt?.color||null;
+  const bktMainColor=bkt?.mainColor||null;
+  const bktBgColor=bkt?.bgColor||null;
   const celebrating_=celebrating;
-  const isLight=bktColor&&hexLum(bktColor)>0.45;
-  const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bktColor?bktColor:tcBg;
-  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":dlShow?.color==="#FF453A"?"#FF453A44":bktColor?"transparent":tcBorder;
-  const cardText=bktColor&&!celebrating_&&!isDone?(isLight?"#111":"#fff"):null;
+  const bgActual=bktBgColor?bktBgColor+"22":null;
+  const isLight=bktBgColor?hexLum(bktBgColor)<0.3:false;
+  const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bgActual?bgActual:tcBg;
+  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":dlShow?.color==="#FF453A"?"#FF453A44":bktMainColor?bktMainColor+"33":tcBorder;
+  const cardText=null;
   return(
     <div draggable={!listMode&&!readOnly&&!celebrating_&&!isDone} onDragStart={e=>{e.dataTransfer.effectAllowed="move";onDragStart&&onDragStart(task.id);}} onDragOver={e=>{e.preventDefault();onDragOver&&onDragOver(task.id);}} onDrop={e=>{e.preventDefault();onDrop&&onDrop(task.id);}} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       style={{borderRadius:10,padding:"9px 11px",marginBottom:5,border:`1px solid ${cardBorder}`,opacity:isDragging?.35:isDone?.6:1,cursor:"pointer",position:"relative",overflow:"hidden",transition:"border-color .3s,background .3s",
@@ -763,8 +777,10 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
       {!celebrating_&&isDone&&<div style={{position:"absolute",inset:0,background:"#0a120a",borderRadius:10,zIndex:0}}/>}
       {!celebrating_&&!isDone&&hasCover&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",borderRadius:10}}/>}
       {!celebrating_&&!isDone&&!hasCover&&<div style={{position:"absolute",inset:0,background:cardBg,borderRadius:10,zIndex:0}}/>}
-      {!celebrating_&&!isDone&&accent&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:pi.dot,borderRadius:"0 3px 3px 0",opacity:.85,zIndex:1}}/>}
-      {!celebrating_&&!isDone&&!accent&&dlShow&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:dlShow.color,borderRadius:"0 3px 3px 0",opacity:.45,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&bktMainColor&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"0 2px 2px 0",opacity:.9,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&bktMainColor&&<div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"2px 0 0 2px",opacity:.9,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&!bktMainColor&&accent&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:pi.dot,borderRadius:"0 3px 3px 0",opacity:.85,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&!bktMainColor&&!accent&&dlShow&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:dlShow.color,borderRadius:"0 3px 3px 0",opacity:.45,zIndex:1}}/>}
       {(celebrating_||isDone)&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:"#30D158",borderRadius:"0 3px 3px 0",zIndex:1,opacity:isDone?.5:1}}/>}
       <div style={{paddingLeft:8,position:"relative",zIndex:1}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:7}}>
@@ -843,7 +859,7 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,hideTomorrow}){
+function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,hideTomorrow,showTimeFrames}){
   const {col:dvBg,border:dvBo,text:dvTx,muted:dvMu,cardBg:dvCard}=useTheme();
   const sb=activeTab==="all";
   const rel=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
@@ -857,6 +873,14 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
   const nmLbl=now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
   const [ovExpanded,setOvExpanded]=useState(false);
   const upcoming60=t=>t.time&&!t.time.startsWith("—")&&t2m(t.time)>nm&&t2m(t.time)<=nm+60;
+
+  const TF=[
+    {label:"Morning",emoji:"🌅",start:7*60,end:11*60+59},
+    {label:"Afternoon",emoji:"☀️",start:12*60,end:16*60+59},
+    {label:"Night",emoji:"🌆",start:17*60,end:21*60+59},
+    {label:"4th Meal",emoji:"🌙",start:22*60,end:25*60+59},
+  ];
+
   const Row=({task})=>{
     const passed=task.time&&t2m(task.time)<=nm;
     const soon=upcoming60(task);
@@ -873,6 +897,56 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
       </div>
     );
   };
+
+  const NowLine=()=>(<div style={{display:"flex",alignItems:"center",margin:"6px 0"}}>
+    <div style={{width:62,flexShrink:0,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}><span style={{fontSize:10,color:LIME,fontWeight:700}}>{nmLbl}</span></div>
+    <div style={{width:16,display:"flex",justifyContent:"center"}}><div style={{width:10,height:10,borderRadius:"50%",background:LIME,boxShadow:`0 0 8px ${LIME}88`}}/></div>
+    <div style={{flex:1,paddingLeft:8}}><div style={{height:2,background:`linear-gradient(90deg,${LIME},${LIME}44,transparent)`,borderRadius:2}}/></div>
+  </div>);
+
+  const FrameDiv=({label,emoji})=>(<div style={{display:"flex",alignItems:"center",gap:8,margin:"12px 0 8px",paddingLeft:68}}>
+    <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+    <span style={{fontSize:9,color:"#444",textTransform:"uppercase",whiteSpace:"nowrap",letterSpacing:.5}}>{emoji} {label}</span>
+    <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+  </div>);
+
+  const buildTimedList=()=>{
+    if(!showTimeFrames){
+      const items=[];
+      let nowInserted=false;
+      timed.forEach((t,i)=>{
+        const tm=t2m(t.time);
+        if(!nowInserted&&tm>nm){
+          items.push(<NowLine key="now"/>);
+          nowInserted=true;
+        }
+        items.push(<Row key={t.id} task={t}/>);
+      });
+      if(!nowInserted)items.push(<NowLine key="now"/>);
+      return items;
+    }
+    const items=[];
+    let nowInserted=false;
+    const insertNowIfNeeded=(beforeMin)=>{if(!nowInserted&&nm<beforeMin){items.push(<NowLine key="now"/>);nowInserted=true;}};
+    TF.forEach(frame=>{
+      const frameTasks=timed.filter(t=>{const m=t2m(t.time);return m>=frame.start&&m<=frame.end;});
+      if(frameTasks.length===0)return;
+      insertNowIfNeeded(frame.start);
+      items.push(<FrameDiv key={frame.label} label={frame.label} emoji={frame.emoji}/>);
+      frameTasks.forEach(t=>{
+        insertNowIfNeeded(t2m(t.time));
+        items.push(<Row key={t.id} task={t}/>);
+      });
+    });
+    const noFrame=timed.filter(t=>{const m=t2m(t.time);return !TF.some(f=>m>=f.start&&m<=f.end);});
+    if(noFrame.length>0){
+      insertNowIfNeeded(99999);
+      noFrame.forEach(t=>items.push(<Row key={t.id} task={t}/>));
+    }
+    if(!nowInserted)items.push(<NowLine key="now"/>);
+    return items;
+  };
+
   const [quickTitle,setQuickTitle]=useState("");
   const quickRef=useRef();
   const submitQuick=async()=>{
@@ -886,7 +960,6 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
   };
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
-      {/* Quick-add bar pinned to top */}
       {!readOnly&&<div style={{padding:"8px 16px",borderBottom:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",gap:8,alignItems:"center"}}>
         <input ref={quickRef} value={quickTitle} onChange={e=>setQuickTitle(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter")submitQuick();if(e.key==="Escape")setQuickTitle("");}}
@@ -896,30 +969,34 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
         <button onClick={submitQuick} style={{width:34,height:34,borderRadius:8,border:"none",background:quickTitle?LIME:"#1a1a1a",color:quickTitle?"#000":"#333",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s,color .15s",fontWeight:700}}>+</button>
       </div>}
       <div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
-      {ov.length>0&&(
-        <div style={{marginBottom:16,padding:"0 16px"}}>
-          <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?10:0,transition:"margin .2s"}}>
-            <span style={{fontSize:13,color:"#FF453A"}}>⚠</span>
-            <span style={{fontSize:12,fontWeight:700,color:"#FF453A"}}>{ov.length} OVERDUE TASK{ov.length!==1?"S":""}</span>
-            <span style={{marginLeft:"auto",fontSize:11,color:"#FF453A88"}}>{ovExpanded?"▾ hide":"▸ show"}</span>
-          </button>
-          {ovExpanded&&[...ov].sort((a,b)=>t2m(a.time)-t2m(b.time)).map(t=><Row key={t.id} task={t}/>)}
+        {ov.length>0&&(
+          <div style={{marginBottom:16,padding:"0 16px"}}>
+            <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?10:0,transition:"margin .2s"}}>
+              <span style={{fontSize:13,color:"#FF453A"}}>⚠</span>
+              <span style={{fontSize:12,fontWeight:700,color:"#FF453A"}}>{ov.length} OVERDUE TASK{ov.length!==1?"S":""}</span>
+              <span style={{marginLeft:"auto",fontSize:11,color:"#FF453A88"}}>{ovExpanded?"▾ hide":"▸ show"}</span>
+            </button>
+            {ovExpanded&&[...ov].sort((a,b)=>t2m(a.time)-t2m(b.time)).map(t=><Row key={t.id} task={t}/>)}
+          </div>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:10,margin:"0 16px 14px"}}><div style={{flex:1,height:1,background:BORDER}}/><div style={{fontSize:11,fontWeight:700,color:LIME,letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{tdLbl}</div><div style={{flex:1,height:1,background:BORDER}}/></div>
+        <div style={{padding:"0 16px"}}>
+          {buildTimedList()}
+          {untimed.length>0&&(
+            <>
+              {timed.length>0&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0",paddingLeft:68}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><span style={{fontSize:9,color:"#333",textTransform:"uppercase",whiteSpace:"nowrap"}}>No time set</span><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>}
+              {untimed.map(t=><Row key={t.id} task={t}/>)}
+            </>
+          )}
+          {rel.length===0&&<div style={{textAlign:"center",padding:"48px 0",fontSize:13,fontWeight:800,letterSpacing:1.5,color:LIME,textTransform:"uppercase"}}>YOU CRUSHED THE DAY! 🎉 PARTY!</div>}
         </div>
-      )}
-      <div style={{display:"flex",alignItems:"center",gap:10,margin:"0 16px 14px"}}><div style={{flex:1,height:1,background:BORDER}}/><div style={{fontSize:11,fontWeight:700,color:LIME,letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{tdLbl}</div><div style={{flex:1,height:1,background:BORDER}}/></div>
-      <div style={{display:"flex",alignItems:"center",marginBottom:10}}><div style={{width:62,flexShrink:0,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}><span style={{fontSize:10,color:LIME,fontWeight:700,whiteSpace:"nowrap"}}>{nmLbl}</span></div><div style={{width:16,display:"flex",justifyContent:"center"}}><div style={{width:10,height:10,borderRadius:"50%",background:LIME,boxShadow:`0 0 8px ${LIME}55`}}/></div><div style={{flex:1,paddingLeft:8}}><div style={{height:1,background:`linear-gradient(90deg,${LIME}44,transparent)`}}/></div></div>
-      <div style={{padding:"0 16px"}}>
-        {timed.map(t=><Row key={t.id} task={t}/>)}
-        {untimed.length>0&&<>{timed.length>0&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0",paddingLeft:68}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><span style={{fontSize:9,color:"#333",textTransform:"uppercase",whiteSpace:"nowrap"}}>No time set</span><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>}{untimed.map(t=><Row key={t.id} task={t}/>)}</>}
-        {rel.length===0&&<div style={{textAlign:"center",padding:"48px 0",fontSize:13,fontWeight:800,letterSpacing:1.5,color:LIME,textTransform:"uppercase"}}>YOU CRUSHED THE DAY! 🎉 PARTY!</div>}
-      </div>
-      {!readOnly&&<div style={{padding:"10px 16px 0"}}><DayAddCard boardId={boardId} onAdd={onAddTask}/></div>}
-      {!hideTomorrow&&tmrw.length>0&&(
-        <div style={{padding:"0 16px",marginTop:20}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><div style={{fontSize:10,fontWeight:700,color:"#444",letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>Tomorrow</div><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>
-          {tmrw.map(t=><Row key={t.id} task={t}/>)}
-        </div>
-      )}
+        {!readOnly&&<div style={{padding:"10px 16px 0"}}><DayAddCard boardId={boardId} onAdd={onAddTask}/></div>}
+        {!hideTomorrow&&tmrw.length>0&&(
+          <div style={{padding:"0 16px",marginTop:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><div style={{flex:1,height:1,background:"#1a1a1a"}}/><div style={{fontSize:10,fontWeight:700,color:"#444",letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>Tomorrow</div><div style={{flex:1,height:1,background:"#1a1a1a"}}/></div>
+            {tmrw.map(t=><Row key={t.id} task={t}/>)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1215,8 +1292,8 @@ function MainApp({user,board,onBack,onSignOut}){
         db.from("board_settings").select("*").eq("board_id",board.id).single(),
       ]);
       setTasks((tr.data||[]).map(dbToTask));
-      setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',hideTomorrow:sr.data.hide_tomorrow||false,lightMode:sr.data.light_mode||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);}
+      setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',hideTomorrow:sr.data.hide_tomorrow||false,lightMode:sr.data.light_mode||false,showTimeFrames:sr.data.show_time_frames||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1225,7 +1302,7 @@ function MainApp({user,board,onBack,onSignOut}){
           if(eventType==="DELETE")setTasks(ts=>ts.filter(t=>t.id!==o.id));
         })
         .on("postgres_changes",{event:"*",schema:"public",table:"buckets",filter:`board_id=eq.${board.id}`},()=>{
-          db.from("buckets").select("*").eq("board_id",board.id).order("sort_order").then(({data})=>{if(data)setBuckets(data.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null,parentId:b.parent_id||null})));});
+          db.from("buckets").select("*").eq("board_id",board.id).order("sort_order").then(({data})=>{if(data)setBuckets(data.map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));});
         })
         .subscribe();
     })();
@@ -1240,7 +1317,7 @@ function MainApp({user,board,onBack,onSignOut}){
       db.from("buckets").select("*").eq("board_id",board.id).order("sort_order"),
     ]);
     setTasks((tr.data||[]).map(dbToTask));
-    setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null,parentId:b.parent_id||null})));
+    setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
     setSyncing(false);
   };
 
@@ -1331,13 +1408,13 @@ function MainApp({user,board,onBack,onSignOut}){
     const lIds=new Set(list.map(b=>b.id));
     for(const id of exIds){if(!lIds.has(id))await db.from("buckets").delete().eq("id",id);}
     if(list.length>0){
-      const rows=list.map((b,i)=>({id:b.id,board_id:board.id,emoji:b.emoji||"📦",label:b.label,color:b.color||null,parent_id:b.parentId||null,sort_order:i}));
+      const rows=list.map((b,i)=>({id:b.id,board_id:board.id,emoji:b.emoji||"📦",label:b.label,color:b.mainColor||null,bg_color:b.bgColor||null,parent_id:b.parentId||null,sort_order:i}));
       const{error}=await db.from("buckets").upsert(rows);
       if(error){console.error("saveBuckets error",error);alert("Bucket save failed: "+error.message);}
     }
   };
 
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',hide_tomorrow:s.hideTomorrow||false,light_mode:s.lightMode||false});};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',hide_tomorrow:s.hideTomorrow||false,light_mode:s.lightMode||false,show_time_frames:s.showTimeFrames||false});};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -1415,7 +1492,7 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       )}
       {viewMode==="list"&&<ListView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} hideTomorrow={settings.hideTomorrow}/>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} hideTomorrow={settings.hideTomorrow} showTimeFrames={settings.showTimeFrames}/>}
       {viewMode==="dur"&&<DurationView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
 
       <div style={{borderTop:`1px solid ${theme.border}`,background:theme.navBg,flexShrink:0}}>
