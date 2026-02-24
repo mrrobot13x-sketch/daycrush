@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.25</title>
+<title>DayCrush v1.26</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.25</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.26</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -525,6 +525,58 @@ function ActionMgr({actions,onSave,onClose}){
   );
 }
 
+function StatsMdl({tasks,oCt,tCt,onClose}){
+  const now=etNow();
+  const todayStr2=now.toISOString().split("T")[0];
+  // Week start = Monday
+  const dow=now.getDay();// 0=Sun
+  const daysSinceMon=dow===0?6:dow-1;
+  const weekStart=new Date(now);weekStart.setDate(now.getDate()-daysSinceMon);weekStart.setHours(0,0,0,0);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const isDoneToday=t=>{
+    if(!t.completionLog||!t.completionLog.length)return false;
+    return t.completionLog.some(e=>{if(!e.doneAt)return false;const d=new Date(e.doneAt);return d.toISOString().split("T")[0]===todayStr2;});
+  };
+  const isDoneThisWeek=t=>{
+    if(!t.completionLog||!t.completionLog.length)return false;
+    return t.completionLog.some(e=>{if(!e.doneAt)return false;const d=new Date(e.doneAt);return d>=weekStart;});
+  };
+  const isDoneThisMonth=t=>{
+    if(!t.completionLog||!t.completionLog.length)return false;
+    return t.completionLog.some(e=>{if(!e.doneAt)return false;const d=new Date(e.doneAt);return d>=monthStart;});
+  };
+  // Also count one-offs that are done (done flag)
+  const doneTodayList=tasks.filter(t=>isDoneToday(t)||(t.done&&t.doneAt&&t.doneAt.split("T")[0]===todayStr2));
+  const doneWeekList=tasks.filter(t=>isDoneThisWeek(t)||(t.done&&t.doneAt&&new Date(t.doneAt)>=weekStart));
+  const doneMonthList=tasks.filter(t=>isDoneThisMonth(t)||(t.done&&t.doneAt&&new Date(t.doneAt)>=monthStart));
+  const cDt=doneTodayList.length,cWk=doneWeekList.length,cMo=doneMonthList.length;
+  const stat=(label,val,color)=>(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:`1px solid ${BORDER}`}}>
+      <span style={{fontSize:13,color:"#aaa"}}>{label}</span>
+      <span style={{fontSize:22,fontWeight:800,color:color||LIME}}>{val}</span>
+    </div>
+  );
+  return(
+    <Modal onClose={onClose} maxWidth={300}>
+      <div style={{padding:"18px 18px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <span style={{fontWeight:700,fontSize:15}}>Stats</span>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button>
+        </div>
+        {stat("Overdue",oCt,"#FF453A")}
+        {stat("Due today",tCt,LIME)}
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"12px 0 4px"}}>COMPLETED</div>
+        {stat("Today",cDt)}
+        {stat("This week",cWk)}
+        {stat("This month",cMo)}
+      </div>
+      <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:12}}>
+        <button onClick={onClose} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Done</button>
+      </div>
+    </Modal>
+  );
+}
+
 function DisplayMdl({settings,onChange,onClose}){
   const tog=k=>onChange({...settings,[k]:!settings[k]});
   const sw=(key,on)=>(
@@ -534,17 +586,21 @@ function DisplayMdl({settings,onChange,onClose}){
   );
   const row=(label,key)=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BORDER}`}}><div style={{fontSize:13,fontWeight:500}}>{label}</div>{sw(key,!!settings[key])}</div>);
   const rowInv=(label,key)=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BORDER}`}}><div style={{fontSize:13,fontWeight:500}}>{label}</div>{sw(key,!settings[key])}</div>);
+  const sec=t=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"12px 0 6px"}}>{t}</div>);
   return(
     <Modal onClose={onClose} maxWidth={320}>
       <div style={{padding:"18px 18px 0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>👁 Display</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
-        <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",marginBottom:6}}>CARDS</div>
-        {row("SHOW action","showActionTag")}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>Show</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
+        {sec("TASKS")}
+        {rowInv("SHOW not due yet","hideNotDueYet")}
+        {rowInv("SHOW low priority","hideLowPriority")}
+        {sec("CARDS")}
+        {row("SHOW action tag","showActionTag")}
         {row("SHOW bucket color","showBucketColor")}
         {row("SHOW card background","showCardBg")}
         {row("SHOW duration","showDuration")}
         {row("SHOW frequency","showFrequency")}
-        <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"12px 0 6px"}}>CALENDAR</div>
+        {sec("CALENDAR")}
         {row("SHOW tomorrow","showTomorrow")}
         {rowInv("SHOW time frames","hideTimeFrames")}
         {row("SHOW hourly view","showHourlyCalendar")}
@@ -589,8 +645,6 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
             {VIEWS.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
         </div>
-        {row("Hide tasks not due yet","hideNotDueYet")}
-        {row("Hide low priority tasks","hideLowPriority")}
         {sec("👁 View-Specific")}
         {row("Hide DO column when empty","hideEmptyDo","Board view")}
         {row("Collapse overdue tasks","hideCalOverdue","Calendar view")}
@@ -995,15 +1049,21 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
 
 function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb}){
   const now=etNow(),nm=now.getHours()*60+now.getMinutes();
-  const HOUR_H=64; // px per hour
-  const MIN_H=24;  // minimum block height in px
-  const START_H=8,END_H=20; // 8am to 8pm
-  const HOURS=Array.from({length:END_H-START_H+1},(_,i)=>START_H+i);
-  const timed=tasks.filter(t=>t.time&&t.dueDate&&daysDiff(t.dueDate)<=0);
+  const HOUR_H=56; // px per hour
+  const MIN_H=22;  // minimum block height in px
+  // Dynamic start: 6AM–12AM always; after noon if all morning tasks done, shift to 12PM–12AM
+  const allTimed=tasks.filter(t=>t.time&&t.dueDate&&daysDiff(t.dueDate)<=0);
+  const morningTasks=allTimed.filter(t=>t2m(t.time)>=6*60&&t2m(t.time)<12*60);
+  const morningAllDone=morningTasks.length===0||morningTasks.every(t=>t.done);
+  const afterNoon=nm>=12*60;
+  const START_H=(afterNoon&&morningAllDone)?12:6;
+  const END_H=24; // midnight
+  const HOURS=Array.from({length:END_H-START_H},(_,i)=>START_H+i);
+  const timed=allTimed;
   // Compute now-line position
   const nowMin=Math.max(START_H*60,Math.min(END_H*60,nm));
   const nowPct=(nowMin-START_H*60)/((END_H-START_H)*60);
-  const nowTop=nowPct*(HOURS.length-1)*HOUR_H;
+  const nowTop=nowPct*(HOURS.length)*HOUR_H;
   const showNowLine=nm>=START_H*60&&nm<=END_H*60;
   // Layout tasks: detect overlaps, assign columns
   const evts=timed.map(t=>{
@@ -1011,7 +1071,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
     const dur=t.duration?Math.max(parseInt(t.duration),15):30;
     const em=sm+dur;
     return{t,sm,em,dur,col:0,cols:1};
-  }).filter(e=>e.sm>=START_H*60&&e.sm<=END_H*60);
+  }).filter(e=>e.sm>=START_H*60&&e.sm<END_H*60);
   // Simple column assignment
   const placed=[];
   evts.forEach(e=>{
@@ -1027,7 +1087,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
     const overlapping=placed.filter(p=>p!==e&&p.sm<e.em&&p.em>e.sm);
     e.cols=Math.max(1,...overlapping.map(p=>p.col+1),e.col+1);
   });
-  const totalH=(HOURS.length-1)*HOUR_H;
+  const totalH=HOURS.length*HOUR_H;
   const bktColor=t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return bkt?.mainColor||null;};
   return(
     <div style={{flex:1,overflowY:"auto",padding:"14px 16px",maxWidth:640,margin:"0 auto",width:"100%"}}>
@@ -1036,7 +1096,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
         {HOURS.map((h,i)=>(
           <div key={h} style={{position:"absolute",top:i*HOUR_H,left:-48,right:0,display:"flex",alignItems:"center",pointerEvents:"none"}}>
             <span style={{fontSize:10,color:"#444",width:42,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1}}>
-              {h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`}
+              {h===0||h===24?"12 AM":h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`}
             </span>
             <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
           </div>
@@ -1772,6 +1832,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const [showLog,setShowLog]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
   const [showDisplay,setShowDisplay]=useState(false);
+  const [showStats,setShowStats]=useState(false);
   const logKey=`daycrush_log_${board.id}`;
   const getLog=()=>{try{return JSON.parse(localStorage.getItem(logKey)||"[]");}catch{return[];}};
   const appendLog=entry=>{try{const l=getLog();l.unshift({...entry,at:new Date().toISOString()});localStorage.setItem(logKey,JSON.stringify(l.slice(0,500)));}catch{}};
@@ -1821,16 +1882,19 @@ function MainApp({user,board,onBack,onSignOut}){
     const now2=etNow(),nm2=now2.getHours()*60+now2.getMinutes();
     const updated=tasks.map(t=>{
       const hasFreq=t.frequency&&t.frequency.trim();
-      if(hasFreq)return t; // recurring stays where it is
       const isToday=t.dueDate&&daysDiff(t.dueDate)===0;
       const isOverdue=t.dueDate&&daysDiff(t.dueDate)<0;
-      // due in next 2h OR timed today and time already passed
       const tm=t.time?t2m(t.time):null;
-      const in2h=isToday&&tm!==null&&(tm>nm2&&tm<=nm2+120);
+      // Rule 1: overdue OR (today and time in next 2h or already past) → IN PROGRESS
+      const in2h=isToday&&tm!==null&&tm>nm2&&tm<=nm2+120;
       const pastToday=isToday&&tm!==null&&tm<=nm2;
-      if(in2h||pastToday||isOverdue)return{...t,status:"inprogress"};
+      if(isOverdue||in2h||pastToday)return{...t,status:"inprogress"};
+      // Rule 2: one-off tasks not in rule 1 → NEXT UP
+      if(!hasFreq)return{...t,status:"nextup"};
+      // Rule 3: recurring due today not in rule 1 → TO DO
       if(isToday)return{...t,status:"do"};
-      return{...t,status:"nextup"};
+      // Rule 4: everything else → LIST
+      return{...t,status:"list"};
     });
     const changed=updated.filter((t,i)=>t.status!==tasks[i].status);
     if(!changed.length)return;
@@ -2005,10 +2069,14 @@ function MainApp({user,board,onBack,onSignOut}){
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            {!readOnly&&<button onClick={()=>setShowQuickAdd(true)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
             {/* Bucket dropdown */}
             <BucketDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}/>
-
+            {/* Stats pill */}
+            <button onClick={()=>setShowStats(true)} style={{display:"flex",alignItems:"center",gap:0,background:"#111",border:`1px solid ${BORDER}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",fontFamily:"inherit",height:32}}>
+              {oCt>0&&<><span style={{color:"#FF453A",fontWeight:700,fontSize:11}}>{oCt}</span><span style={{color:"#333",fontSize:10,margin:"0 4px"}}>|</span></>}
+              {tCt>0&&<><span style={{color:LIME,fontWeight:700,fontSize:11}}>{tCt}</span><span style={{color:"#333",fontSize:10,margin:"0 4px"}}>|</span></>}
+              <span style={{color:"#555",fontSize:11}}>{tasks.length}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -2035,12 +2103,8 @@ function MainApp({user,board,onBack,onSignOut}){
               </button>
             ))}
           </div>
-          {/* Stats - compact numbers only */}
-          <div style={{display:"flex",gap:7,alignItems:"center"}}>
-            {oCt>0&&<span style={{color:"#FF453A",fontWeight:700,fontSize:12}}>{oCt}</span>}
-            {tCt>0&&<span style={{color:LIME,fontWeight:700,fontSize:12}}>{tCt}</span>}
-            <span style={{color:"#333",fontSize:11}}>{tasks.length}</span>
-          </div>
+          {/* Center + button */}
+          {!readOnly&&<button onClick={()=>setShowQuickAdd(true)} style={{width:38,height:38,borderRadius:10,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300,flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
           {/* Right actions */}
           <div style={{display:"flex"}}>
             <button onClick={()=>setShowSearch(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
@@ -2052,8 +2116,8 @@ function MainApp({user,board,onBack,onSignOut}){
               <span style={{fontSize:7,letterSpacing:.3}}>Sync</span>
             </button>
             <button onClick={()=>setShowDisplay(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
-              <span style={{fontSize:15,lineHeight:1}}>👁</span>
-              <span style={{fontSize:7,letterSpacing:.3}}>Display</span>
+              <span style={{fontSize:15,lineHeight:1}}>⊙</span>
+              <span style={{fontSize:7,letterSpacing:.3}}>Show</span>
             </button>
             <button onClick={()=>setShowSettings(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
               <span style={{fontSize:15,lineHeight:1}}>⚙</span>
@@ -2085,6 +2149,7 @@ function MainApp({user,board,onBack,onSignOut}){
         }}
       />}
       {showDisplay&&<DisplayMdl settings={settings} onChange={saveSettings} onClose={()=>setShowDisplay(false)}/>}
+      {showStats&&<StatsMdl tasks={tasks} oCt={oCt} tCt={tCt} onClose={()=>setShowStats(false)}/>}
       {showLog&&<ActivityLog logKey={logKey} onClose={()=>setShowLog(false)}/>}
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
