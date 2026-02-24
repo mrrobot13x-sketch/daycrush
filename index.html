@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.26</title>
+<title>DayCrush v1.27</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -77,7 +77,7 @@ const HEX_CHARS="0123456789abcdef";
 const isHex=s=>{if(!s||s.length!==7||s[0]!=="#")return false;const l=s.slice(1).toLowerCase();let ok=true;l.split("").forEach(ch=>{if(HEX_CHARS.indexOf(ch)===-1)ok=false;});return ok;};
 const hexLum=h=>{if(!isHex(h))return 0;const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255;return .2126*r+.7152*g+.0722*b;};
 const fmtDateFull=d=>new Date(d+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
-const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":");const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?"am":"pm"}`;};
+const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":");const hr=parseInt(h);return`${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?"AM":"PM"}`;};
 const t2m=t=>{if(!t)return 9999;const[h,m]=t.split(":");return parseInt(h)*60+parseInt(m);};
 const daysDiff=s=>{const a=new Date(todayStr()+"T00:00:00"),b=new Date(s+"T00:00:00");return Math.round((b-a)/86400000);};
 const parseFreq=f=>{
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.26</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.27</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -1047,108 +1047,173 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb}){
-  const now=etNow(),nm=now.getHours()*60+now.getMinutes();
-  const HOUR_H=56; // px per hour
-  const MIN_H=22;  // minimum block height in px
-  // Dynamic start: 6AM–12AM always; after noon if all morning tasks done, shift to 12PM–12AM
-  const allTimed=tasks.filter(t=>t.time&&t.dueDate&&daysDiff(t.dueDate)<=0);
-  const morningTasks=allTimed.filter(t=>t2m(t.time)>=6*60&&t2m(t.time)<12*60);
-  const morningAllDone=morningTasks.length===0||morningTasks.every(t=>t.done);
-  const afterNoon=nm>=12*60;
-  const START_H=(afterNoon&&morningAllDone)?12:6;
-  const END_H=24; // midnight
+function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb,onAddTask,hideTimeFrames,nm}){
+  const now=etNow();
+  const curNm=nm!==undefined?nm:(now.getHours()*60+now.getMinutes());
+  const HOUR_H=56,MIN_H=22;
+  const TF_FRAMES=[
+    {label:"Morning",emoji:"🌅",color:"#FF9F0A",start:7*60,end:11*60+59},
+    {label:"Afternoon",emoji:"☀️",color:LIME,start:12*60,end:16*60+59},
+    {label:"Night",emoji:"🌆",color:"#5E5CE6",start:17*60,end:21*60+59},
+    {label:"4th Meal",emoji:"🌙",color:"#0A84FF",start:22*60,end:25*60+59},
+  ];
+  // Determine all tasks relevant to calendar view
+  const overdue=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0);
+  const todayAll=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0);
+  const todayTimed=[...todayAll.filter(t=>t.time)].sort((a,b)=>t2m(a.time)-t2m(b.time));
+  const todayUntimed=todayAll.filter(t=>!t.time);
+  const [ovExpanded,setOvExpanded]=useState(false);
+  const [untimedOpen,setUntimedOpen]=useState(true);
+  // Dynamic start hour: after noon & morning done → start at 12, else 6
+  const morningTimed=todayTimed.filter(t=>t2m(t.time)>=6*60&&t2m(t.time)<12*60);
+  const morningDone=morningTimed.length===0||morningTimed.every(t=>t.done);
+  const START_H=(curNm>=12*60&&morningDone)?12:6;
+  const END_H=24;
   const HOURS=Array.from({length:END_H-START_H},(_,i)=>START_H+i);
-  const timed=allTimed;
-  // Compute now-line position
-  const nowMin=Math.max(START_H*60,Math.min(END_H*60,nm));
-  const nowPct=(nowMin-START_H*60)/((END_H-START_H)*60);
-  const nowTop=nowPct*(HOURS.length)*HOUR_H;
-  const showNowLine=nm>=START_H*60&&nm<=END_H*60;
-  // Layout tasks: detect overlaps, assign columns
-  const evts=timed.map(t=>{
+  const totalH=HOURS.length*HOUR_H;
+  // Now line
+  const nowMin=Math.max(START_H*60,Math.min(END_H*60,curNm));
+  const nowTop=(nowMin-START_H*60)/60*HOUR_H;
+  const showNowLine=curNm>=START_H*60&&curNm<=END_H*60;
+  // Event layout
+  const evts=todayTimed.map(t=>{
     const sm=t2m(t.time);
     const dur=t.duration?Math.max(parseInt(t.duration),15):30;
-    const em=sm+dur;
-    return{t,sm,em,dur,col:0,cols:1};
+    return{t,sm,em:sm+dur,dur,col:0,cols:1};
   }).filter(e=>e.sm>=START_H*60&&e.sm<END_H*60);
-  // Simple column assignment
   const placed=[];
   evts.forEach(e=>{
     const overlapping=placed.filter(p=>p.sm<e.em&&p.em>e.sm);
     const usedCols=overlapping.map(p=>p.col);
     let col=0;while(usedCols.includes(col))col++;
-    e.col=col;
-    placed.push(e);
+    e.col=col;placed.push(e);
   });
-  const maxCols=placed.reduce((m,e)=>Math.max(m,e.col+1),1);
-  // Update cols count for each event
   placed.forEach(e=>{
-    const overlapping=placed.filter(p=>p!==e&&p.sm<e.em&&p.em>e.sm);
-    e.cols=Math.max(1,...overlapping.map(p=>p.col+1),e.col+1);
+    const ov=placed.filter(p=>p!==e&&p.sm<e.em&&p.em>e.sm);
+    e.cols=Math.max(1,...ov.map(p=>p.col+1),e.col+1);
   });
-  const totalH=HOURS.length*HOUR_H;
   const bktColor=t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return bkt?.mainColor||null;};
+  const hLabel=h=>h===0||h===24?"12 AM":h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`;
+  const tdLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  // Click hour to create task
+  const clickHour=h=>{
+    if(readOnly||!onAddTask)return;
+    const nt=mkTask("do",null);
+    nt.title="";nt.dueDate=todayStr();nt.time=`${String(h).padStart(2,"0")}:00`;
+    onAddTask(nt);
+  };
   return(
-    <div style={{flex:1,overflowY:"auto",padding:"14px 16px",maxWidth:640,margin:"0 auto",width:"100%"}}>
-      <div style={{position:"relative",marginLeft:48}}>
-        {/* Hour lines */}
-        {HOURS.map((h,i)=>(
-          <div key={h} style={{position:"absolute",top:i*HOUR_H,left:-48,right:0,display:"flex",alignItems:"center",pointerEvents:"none"}}>
-            <span style={{fontSize:10,color:"#444",width:42,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1}}>
-              {h===0||h===24?"12 AM":h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`}
-            </span>
-            <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
-          </div>
-        ))}
-        {/* Half-hour dashes */}
-        {HOURS.slice(0,-1).map((h,i)=>(
-          <div key={`half-${h}`} style={{position:"absolute",top:i*HOUR_H+HOUR_H/2,left:0,right:0,height:1,background:"#111",pointerEvents:"none"}}/>
-        ))}
-        {/* Now line */}
-        {showNowLine&&(
-          <div style={{position:"absolute",top:nowTop,left:-48,right:0,display:"flex",alignItems:"center",zIndex:10,pointerEvents:"none"}}>
-            <span style={{fontSize:9,color:LIME,width:42,textAlign:"right",paddingRight:4,fontWeight:700,flexShrink:0}}>{fmtTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`)}</span>
-            <div style={{width:8,height:8,borderRadius:"50%",background:LIME,flexShrink:0,marginLeft:-4,boxShadow:`0 0 6px ${LIME}`}}/>
-            <div style={{flex:1,height:2,background:`linear-gradient(90deg,${LIME},${LIME}44,transparent)`,borderRadius:1}}/>
-          </div>
-        )}
-        {/* Event blocks */}
-        <div style={{position:"relative",height:totalH,marginLeft:8}}>
-          {placed.map(({t,sm,em,dur,col,cols})=>{
-            const top=(sm-START_H*60)/60*HOUR_H;
-            const rawH=dur/60*HOUR_H;
-            const height=Math.max(rawH,MIN_H);
-            const width=`calc(${100/cols}% - 4px)`;
-            const left=`calc(${col*100/cols}%)`;
-            const bc=bktColor(t);
-            const passed=sm<=nm;
-            const longPast=passed&&(nm-sm)>120;
-            const borderCol=longPast?"#FF453A88":passed?"#30D15844":bc?bc+"44":"#2a2a2a";
-            const bg=longPast?"#1a0505":passed?"#071500":bc?bc+"11":"#1c1c1e";
-            const bkt=buckets.find(b=>b.id===t.bucketId);
-            return(
-              <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left,width,boxSizing:"border-box",paddingRight:4}}>
-                <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative",transition:"border-color .2s"}}>
-                  {bc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
-                  <div style={{paddingLeft:bc?6:0}}>
-                    <div style={{fontSize:11,fontWeight:700,color:passed?"#30D158":TEXT,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
-                    {height>28&&<div style={{fontSize:9,color:passed?"#30D15888":"#555",marginTop:2}}>{fmtTime(t.time)}{t.duration?` · ${t.duration}m`:""}{bkt?` · ${bkt.emoji}`:""}</div>}
-                  </div>
-                  {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${celebratingIds.has(t.id)?"#30D158":"#333"}`,background:celebratingIds.has(t.id)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
-                    {celebratingIds.has(t.id)&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
-                  </div>}
-                </div>
+    <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+      {/* Date header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px 0",flexShrink:0}}>
+        <div style={{flex:1,height:1,background:BORDER}}/>
+        <div style={{fontSize:11,fontWeight:700,color:LIME,letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{tdLbl}</div>
+        <div style={{flex:1,height:1,background:BORDER}}/>
+      </div>
+      {/* Overdue */}
+      {overdue.length>0&&(
+        <div style={{padding:"8px 16px 0",flexShrink:0}}>
+          <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?6:0}}>
+            <span style={{fontSize:12,color:"#FF453A"}}>⚠</span>
+            <span style={{fontSize:11,fontWeight:700,color:"#FF453A"}}>{overdue.length} OVERDUE</span>
+            <span style={{marginLeft:"auto",fontSize:10,color:"#FF453A88"}}>{ovExpanded?"▾ hide":"▸ show"}</span>
+          </button>
+          {ovExpanded&&<div style={{paddingBottom:4}}>{[...overdue].sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||"")).map(t=>(
+            <div key={t.id} onClick={()=>onEdit(t)} style={{cursor:"pointer",padding:"6px 10px",borderBottom:`1px solid ${BORDER}`}}>
+              <span style={{fontSize:12,color:"#FF453A88",marginRight:6}}>{t.dueDate}</span>
+              <span style={{fontSize:12,color:TEXT}}>{t.title||"Untitled"}</span>
+            </div>
+          ))}</div>}
+        </div>
+      )}
+      {/* Hourly grid */}
+      <div style={{flex:1,overflowY:"auto",padding:"8px 16px 0"}}>
+        <div style={{maxWidth:640,margin:"0 auto",width:"100%"}}>
+          <div style={{position:"relative",marginLeft:52}}>
+            {/* Time-frame bracket bars (left side, when enabled) */}
+            {!hideTimeFrames&&TF_FRAMES.map(fr=>{
+              const fStart=Math.max(fr.start,START_H*60),fEnd=Math.min(fr.end,END_H*60);
+              if(fStart>=fEnd)return null;
+              const top=(fStart-START_H*60)/60*HOUR_H;
+              const height=(fEnd-fStart)/60*HOUR_H;
+              return(
+                <div key={fr.label} style={{position:"absolute",left:-50,top,width:6,height,borderRadius:3,background:fr.color+"55",pointerEvents:"none"}} title={fr.label}/>
+              );
+            })}
+            {/* Hour lines */}
+            {HOURS.map((h,i)=>(
+              <div key={h} style={{position:"absolute",top:i*HOUR_H,left:-52,right:0,display:"flex",alignItems:"center"}}>
+                <span onClick={()=>clickHour(h)} style={{fontSize:10,color:"#555",width:46,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1,cursor:readOnly?"default":"pointer",whiteSpace:"nowrap"}}
+                  onMouseEnter={e=>{if(!readOnly)e.currentTarget.style.color=LIME;}}
+                  onMouseLeave={e=>{e.currentTarget.style.color="#555";}}>
+                  {hLabel(h)}
+                </span>
+                <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
               </div>
-            );
-          })}
+            ))}
+            {/* Half-hour dashes */}
+            {HOURS.slice(0,-1).map((h,i)=>(
+              <div key={`half-${h}`} style={{position:"absolute",top:i*HOUR_H+HOUR_H/2,left:0,right:0,height:1,background:"#111",pointerEvents:"none"}}/>
+            ))}
+            {/* Now line */}
+            {showNowLine&&(
+              <div style={{position:"absolute",top:nowTop,left:-52,right:0,display:"flex",alignItems:"center",zIndex:10,pointerEvents:"none"}}>
+                <span style={{fontSize:9,color:LIME,width:46,textAlign:"right",paddingRight:4,fontWeight:700,flexShrink:0,whiteSpace:"nowrap",lineHeight:1}}>{fmtTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`)}</span>
+                <div style={{width:8,height:8,borderRadius:"50%",background:LIME,flexShrink:0,marginLeft:-4,boxShadow:`0 0 6px ${LIME}`}}/>
+                <div style={{flex:1,height:2,background:`linear-gradient(90deg,${LIME},${LIME}44,transparent)`,borderRadius:1}}/>
+              </div>
+            )}
+            {/* Event blocks */}
+            <div style={{position:"relative",height:totalH,marginLeft:8}}>
+              {placed.map(({t,sm,em,dur,col,cols})=>{
+                const top=(sm-START_H*60)/60*HOUR_H;
+                const height=Math.max(dur/60*HOUR_H,MIN_H);
+                const bc=bktColor(t);
+                const passed=sm<=curNm;
+                const longPast=passed&&(curNm-sm)>120;
+                const borderCol=longPast?"#FF453A88":passed?"#30D15844":bc?bc+"44":"#2a2a2a";
+                const bg=longPast?"#1a0505":passed?"#071500":bc?bc+"11":"#1c1c1e";
+                const bkt=buckets.find(b=>b.id===t.bucketId);
+                return(
+                  <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left:`calc(${col*100/cols}%)`,width:`calc(${100/cols}% - 4px)`,boxSizing:"border-box",paddingRight:4}}>
+                    <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative"}}>
+                      {bc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
+                      <div style={{paddingLeft:bc?6:0}}>
+                        <div style={{fontSize:11,fontWeight:700,color:passed?"#30D158":TEXT,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
+                        {height>28&&<div style={{fontSize:9,color:passed?"#30D15888":"#555",marginTop:2}}>{fmtTime(t.time)}{t.duration?` · ${t.duration}m`:""}{bkt?` · ${bkt.emoji}`:""}</div>}
+                      </div>
+                      {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${celebratingIds.has(t.id)?"#30D158":"#333"}`,background:celebratingIds.has(t.id)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
+                        {celebratingIds.has(t.id)&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
+                      </div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Untimed tasks */}
+          {todayUntimed.length>0&&(
+            <div style={{marginTop:16,borderTop:`1px solid ${BORDER}`,paddingTop:8}}>
+              <button onClick={()=>setUntimedOpen(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"transparent",border:"none",cursor:"pointer",fontFamily:"inherit",padding:"4px 0",marginBottom:untimedOpen?6:0}}>
+                <span style={{fontSize:11,fontWeight:700,color:"#555",letterSpacing:.5}}>⏱ NO TIME SET</span>
+                <span style={{fontSize:10,color:"#333"}}>{todayUntimed.length}</span>
+                <span style={{marginLeft:"auto",fontSize:9,color:"#333"}}>{untimedOpen?"▾":"▸"}</span>
+              </button>
+              {untimedOpen&&todayUntimed.map(t=>(
+                <div key={t.id} onClick={()=>onEdit(t)} style={{cursor:"pointer",padding:"7px 10px",borderRadius:7,background:"#111",marginBottom:4,border:`1px solid ${BORDER}`}}>
+                  <span style={{fontSize:12,color:TEXT}}>{t.title||"Untitled"}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames,showHourlyCalendar}){
+
+function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames,showHourlyCalendar,onOpenModal,hideTimeFramesSetting}){
   const {col:dvBg,border:dvBo,text:dvTx,muted:dvMu,cardBg:dvCard}=useTheme();
   const sb=activeTab==="all";
   const rel=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
@@ -1186,7 +1251,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
     const dotBorder=longPast?"#FF453A":passed?"#30D158":soon?"#FF9F0A":"#333";
     return(
       <div style={{display:"flex",alignItems:"flex-start",marginBottom:4}}>
-        <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span style={{fontSize:10,color:timeColor,fontWeight:passed||soon?600:400,whiteSpace:"nowrap"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
+        <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span onClick={e=>{e.stopPropagation();if(!readOnly){const nt=mkTask("do",boardId);nt.title="";nt.dueDate=todayStr();nt.time=task.time;onAddTask(nt);}}} style={{fontSize:10,color:timeColor,fontWeight:passed||soon?600:400,whiteSpace:"nowrap",cursor:readOnly?"default":"pointer"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:12,flexShrink:0,width:16}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:dotBg,border:`1.5px solid ${dotBorder}`}}/>
           <div style={{width:1,flex:1,background:"#1a1a1a",minHeight:16,marginTop:2}}/>
@@ -1273,28 +1338,10 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
     return blocks;
   };
 
-  const [quickTitle,setQuickTitle]=useState("");
-  const quickRef=useRef();
-  const submitQuick=async()=>{
-    const t=quickTitle.trim();
-    if(!t)return;
-    setQuickTitle("");
-    const task=mkTask("do",boardId);
-    task.title=t;
-    task.dueDate=todayStr();
-    onAddTask(task);
-  };
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
-      {!readOnly&&<div style={{padding:"8px 16px",borderBottom:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",gap:8,alignItems:"center"}}>
-        <input ref={quickRef} value={quickTitle} onChange={e=>setQuickTitle(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter")submitQuick();if(e.key==="Escape")setQuickTitle("");}}
-          placeholder="Add task for today…"
-          style={{flex:1,background:"#111",border:`1px solid ${quickTitle?"#444":BORDER}`,borderRadius:8,padding:"8px 12px",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}}
-          onFocus={FL} onBlur={FB}/>
-        <button onClick={submitQuick} style={{width:34,height:34,borderRadius:8,border:"none",background:quickTitle?LIME:"#1a1a1a",color:quickTitle?"#000":"#333",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s,color .15s",fontWeight:700}}>+</button>
-      </div>}
-      {showHourlyCalendar?<HourlyCalendar tasks={td} buckets={buckets} onEdit={onEdit} onCheck={onCheck} readOnly={readOnly} celebratingIds={celebratingIds} sb={sb}/>:<div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
+      <QuickAddBar boardId={boardId} onAdd={onAddTask} onOpenModal={onOpenModal} readOnly={readOnly}/>
+      {showHourlyCalendar?<HourlyCalendar tasks={tasks} buckets={buckets} onEdit={onEdit} onCheck={onCheck} readOnly={readOnly} celebratingIds={celebratingIds} sb={sb} onAddTask={onAddTask} hideTimeFrames={hideTimeFrames} nm={nm}/>:<div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
         {ov.length>0&&(
           <div style={{marginBottom:16,padding:"0 16px"}}>
             <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?10:0,transition:"margin .2s"}}>
@@ -1570,6 +1617,32 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
           :<button onClick={()=>setAdding(true)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:`1px dashed ${BORDER}`,borderRadius:9,cursor:"pointer",color:MUTED,fontSize:13,fontFamily:"inherit",padding:"9px 14px",width:"100%",justifyContent:"center"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="#444";e.currentTarget.style.color=TEXT;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.color=MUTED;}}>+ Add Card</button>}
         </div>}
       </div>
+    </div>
+  );
+}
+
+function QuickAddBar({boardId,onAdd,onOpenModal,readOnly}){
+  if(readOnly)return null;
+  const [title,setTitle]=useState("");
+  const ref=useRef();
+  const submit=()=>{
+    const t=title.trim();
+    if(!t)return;
+    setTitle("");
+    const task=mkTask("do",boardId);
+    task.title=t;
+    task.dueDate=todayStr();
+    onAdd(task);
+  };
+  const handlePlus=()=>{if(title.trim())submit();else onOpenModal();};
+  return(
+    <div style={{padding:"8px 16px",borderBottom:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",gap:8,alignItems:"center"}}>
+      <input ref={ref} value={title} onChange={e=>setTitle(e.target.value)}
+        onKeyDown={e=>{if(e.key==="Enter")submit();if(e.key==="Escape")setTitle("");}}
+        placeholder="Add task for today…"
+        style={{flex:1,background:"#111",border:`1px solid ${title?"#444":BORDER}`,borderRadius:8,padding:"8px 12px",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}}
+        onFocus={FL} onBlur={FB}/>
+      <button onClick={handlePlus} style={{width:34,height:34,borderRadius:8,border:"none",background:title?LIME:"#1a1a1a",color:title?"#000":"#444",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s,color .15s",fontWeight:700}}>+</button>
     </div>
   );
 }
@@ -1850,7 +1923,29 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false,showActionTag:sr.data.show_action_tag||false,showBucketColor:sr.data.show_bucket_color!==false,showCardBg:sr.data.show_card_bg!==false,showDuration:sr.data.show_duration!==false,showFrequency:sr.data.show_frequency!==false,showHourlyCalendar:sr.data.show_hourly_cal||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
+      if(sr.data){
+        const dk=`dc_disp_${user.id}_${board.id}`;
+        let lc={};try{lc=JSON.parse(localStorage.getItem(dk)||"{}");}catch{}
+        const s={
+          hideNotDueYet:lc.hideNotDueYet!==undefined?lc.hideNotDueYet:(sr.data.hide_not_due_yet||false),
+          hideLowPriority:lc.hideLowPriority!==undefined?lc.hideLowPriority:(sr.data.hide_low_priority||false),
+          hideEmptyDo:lc.hideEmptyDo!==undefined?lc.hideEmptyDo:(sr.data.hide_empty_do||false),
+          defaultView:lc.defaultView||sr.data.default_view||"day",
+          hideCalOverdue:lc.hideCalOverdue!==undefined?lc.hideCalOverdue:(sr.data.hide_cal_overdue||false),
+          dayStartTime:lc.dayStartTime||sr.data.day_start_time||'00:30',
+          showTomorrow:lc.showTomorrow!==undefined?lc.showTomorrow:(sr.data.show_tomorrow||false),
+          lightMode:lc.lightMode!==undefined?lc.lightMode:(sr.data.light_mode||false),
+          hideTimeFrames:lc.hideTimeFrames!==undefined?lc.hideTimeFrames:(sr.data.hide_time_frames||false),
+          showActionTag:lc.showActionTag!==undefined?lc.showActionTag:(sr.data.show_action_tag||false),
+          showBucketColor:lc.showBucketColor!==undefined?lc.showBucketColor:(sr.data.show_bucket_color!==false),
+          showCardBg:lc.showCardBg!==undefined?lc.showCardBg:(sr.data.show_card_bg!==false),
+          showDuration:lc.showDuration!==undefined?lc.showDuration:(sr.data.show_duration!==false),
+          showFrequency:lc.showFrequency!==undefined?lc.showFrequency:(sr.data.show_frequency!==false),
+          showHourlyCalendar:lc.showHourlyCalendar!==undefined?lc.showHourlyCalendar:(sr.data.show_hourly_cal||false)
+        };
+        setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);
+        if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
+      }
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -2000,7 +2095,9 @@ function MainApp({user,board,onBack,onSignOut}){
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,show_hourly_cal:s.showHourlyCalendar||false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+  const dispKey=`dc_disp_${user.id}_${board.id}`;
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,show_hourly_cal:s.showHourlyCalendar||false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2082,15 +2179,21 @@ function MainApp({user,board,onBack,onSignOut}){
       </div>
 
       {viewMode==="board"&&(
+        <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+        <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <div style={{flex:1,overflowX:"auto",overflowY:"hidden",padding:"12px 16px 0",display:"flex",gap:10,alignItems:"stretch",minHeight:0}}>
           {COLS.filter(col=>!(col.id==="do"&&settings.hideEmptyDo&&vis.filter(t=>t.status==="do").length===0)).map(col=>(
             <Column key={col.id} col={col} boardId={board.id} buckets={buckets} activeTab={activeTab} tasks={vis.filter(t=>t.status===col.id)} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} onAddTask={addTask} readOnly={readOnly} draggingId={draggingId} celebratingIds={celebratingIds} onDragStart={handleDragStart} onDragOver={()=>{}} onDrop={handleDrop} onDropCol={handleDropCol}/>
           ))}
         </div>
+        </div>
       )}
 
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} showHourlyCalendar={settings.showHourlyCalendar}/>}
-      {viewMode==="list"&&<DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} showHourlyCalendar={settings.showHourlyCalendar} onOpenModal={()=>setShowQuickAdd(true)}/>}
+      {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+        <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
+        <DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
+      </div>}
 
       <div style={{borderTop:`1px solid ${theme.border}`,background:theme.navBg,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 4px",height:44}}>
@@ -2103,8 +2206,7 @@ function MainApp({user,board,onBack,onSignOut}){
               </button>
             ))}
           </div>
-          {/* Center + button */}
-          {!readOnly&&<button onClick={()=>setShowQuickAdd(true)} style={{width:38,height:38,borderRadius:10,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300,flexShrink:0}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
+
           {/* Right actions */}
           <div style={{display:"flex"}}>
             <button onClick={()=>setShowSearch(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
