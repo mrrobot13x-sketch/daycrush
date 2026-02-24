@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.18</title>
+<title>DayCrush v2.19</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.18</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.19</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -1044,9 +1044,10 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb,onAddTask,hideTimeFrames,nm}){
+function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb,onAddTask,hideTimeFrames}){
   const now=etNow();
-  const curNm=nm!==undefined?nm:(now.getHours()*60+now.getMinutes());
+  const curNm=now.getHours()*60+now.getMinutes();
+  const {showBucketColor:hcSBC,showDuration:hcSD,showFrequency:hcSF,showActionTag:hcSAT,showCardBg:hcSCB}=useTheme();
   const HOUR_H=56,MIN_H=22;
   const TF_FRAMES=[
     {label:"Morning",emoji:"🌅",color:"#FF9F0A",start:7*60,end:11*60+59},
@@ -1166,18 +1167,28 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
                 const top=(sm-START_H*60)/60*HOUR_H;
                 const height=Math.max(dur/60*HOUR_H,MIN_H);
                 const bc=bktColor(t);
+                const bkt=buckets.find(b=>b.id===t.bucketId);
                 const passed=sm<=curNm;
                 const longPast=passed&&(curNm-sm)>120;
-                const borderCol=longPast?"#FF453A88":passed?"#30D15844":bc?bc+"44":"#2a2a2a";
-                const bg=longPast?"#1a0505":passed?"#071500":bc?bc+"11":"#1c1c1e";
-                const bkt=buckets.find(b=>b.id===t.bucketId);
+                const upcoming=!passed&&(sm-curNm)<=60;
+                // Status colors: red=2h+ past, green=passed (0-2h), orange=within 60min, default
+                const stateColor=longPast?"#FF453A":passed?"#30D158":upcoming?"#FF9F0A":null;
+                const showBc=hcSBC&&bc;
+                const borderCol=longPast?"#FF453A88":passed?"#30D15844":upcoming?"#FF9F0A44":showBc?bc+"44":"#2a2a2a";
+                const bg=longPast?"#1a0505":passed?"#071500":upcoming?"#1a0d00":showBc?bc+"11":"#1c1c1e";
+                const titleCol=stateColor||(t.done?"#30D158":TEXT);
                 return(
                   <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left:`calc(${col*100/cols}%)`,width:`calc(${100/cols}% - 4px)`,boxSizing:"border-box",paddingRight:4}}>
                     <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative"}}>
-                      {bc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
-                      <div style={{paddingLeft:bc?6:0}}>
-                        <div style={{fontSize:11,fontWeight:700,color:passed?"#30D158":TEXT,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
-                        {height>28&&<div style={{fontSize:9,color:passed?"#30D15888":"#555",marginTop:2}}>{fmtTime(t.time)}{t.duration?` · ${t.duration}m`:""}{bkt?` · ${bkt.emoji}`:""}</div>}
+                      {showBc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
+                      <div style={{paddingLeft:showBc?6:0}}>
+                        <div style={{fontSize:11,fontWeight:700,color:titleCol,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
+                        {height>28&&<div style={{fontSize:9,color:stateColor?stateColor+"99":"#555",marginTop:2}}>
+                          {fmtTime(t.time)}
+                          {hcSD&&t.duration?` · ${t.duration}m`:""}
+                          {hcSBC&&bkt?` · ${bkt.emoji}`:""}
+                          {hcSF&&t.frequency?` · ${t.frequency}`:""}
+                        </div>}
                       </div>
                       {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${celebratingIds.has(t.id)?"#30D158":"#333"}`,background:celebratingIds.has(t.id)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
                         {celebratingIds.has(t.id)&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
@@ -1389,6 +1400,107 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function TabataView(){
+  const [workSecs,setWorkSecs]=useState(40);
+  const [restSecs,setRestSecs]=useState(20);
+  const [rounds,setRounds]=useState(8);
+  const [phase,setPhase]=useState("idle"); // idle|work|rest|done
+  const [round,setRound]=useState(1);
+  const [secs,setSecs]=useState(40);
+  const [running,setRunning]=useState(false);
+  const tickRef=useRef(null);
+  const beep=(freq,dur)=>{try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type="sine";g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur/1000);o.start(ctx.currentTime);o.stop(ctx.currentTime+dur/1000);}catch{}};
+  const start=()=>{setPhase("work");setSecs(workSecs);setRound(1);setRunning(true);};
+  const stop=()=>{setRunning(false);setPhase("idle");clearInterval(tickRef.current);};
+  useEffect(()=>{
+    if(!running)return;
+    tickRef.current=setInterval(()=>{
+      setSecs(s=>{
+        if(s>1)return s-1;
+        // transition
+        setPhase(ph=>{
+          setRound(r=>{
+            if(ph==="work"){
+              beep(880,150);setSecs(restSecs);return r;
+            }else{
+              if(r>=rounds){beep(440,600);beep(440,600);setRunning(false);clearInterval(tickRef.current);setPhase("done");setSecs(0);return r;}
+              beep(660,150);setSecs(workSecs);return r+1;
+            }
+          });
+          return ph==="work"?"rest":"work";
+        });
+        return s;
+      });
+    },1000);
+    return()=>clearInterval(tickRef.current);
+  },[running,workSecs,restSecs,rounds]);
+  const pct=phase==="work"?secs/workSecs:phase==="rest"?secs/restSecs:1;
+  const phaseColor=phase==="work"?LIME:phase==="rest"?"#0A84FF":phase==="done"?"#30D158":"#444";
+  const circumference=2*Math.PI*90;
+  const numInput=(label,val,set,min,max)=>(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+      <div style={{fontSize:10,color:MUTED,letterSpacing:1,textTransform:"uppercase"}}>{label}</div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <button onClick={()=>set(v=>Math.max(min,v-5))} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+        <input type="number" value={val} onChange={e=>set(Math.max(min,Math.min(max,parseInt(e.target.value)||min)))} min={min} max={max} style={{width:60,textAlign:"center",background:"#111",border:`1px solid ${BORDER}`,borderRadius:8,padding:"6px",color:TEXT,fontSize:18,fontWeight:700,fontFamily:"inherit",outline:"none"}}/>
+        <button onClick={()=>set(v=>Math.min(max,v+5))} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+      </div>
+    </div>
+  );
+  return(
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px",gap:24}}>
+      <div style={{fontSize:13,fontWeight:800,letterSpacing:2,color:MUTED,textTransform:"uppercase"}}>Tabata Timer</div>
+      {/* Ring */}
+      <div style={{position:"relative",width:220,height:220,flexShrink:0}}>
+        <svg width={220} height={220} style={{transform:"rotate(-90deg)"}}>
+          <circle cx={110} cy={110} r={90} fill="none" stroke="#1a1a1a" strokeWidth={12}/>
+          <circle cx={110} cy={110} r={90} fill="none" stroke={phaseColor} strokeWidth={12}
+            strokeDasharray={circumference} strokeDashoffset={circumference*(1-pct)}
+            style={{transition:"stroke-dashoffset .9s linear,stroke .3s"}}/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}>
+          <div style={{fontSize:54,fontWeight:900,color:phaseColor,lineHeight:1,fontVariantNumeric:"tabular-nums"}}>
+            {phase==="idle"?"GO":phase==="done"?"✓":String(secs).padStart(2,"0")}
+          </div>
+          {phase!=="idle"&&phase!=="done"&&<div style={{fontSize:11,color:phaseColor,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>{phase==="work"?"WORK":"REST"}</div>}
+          {phase!=="idle"&&phase!=="done"&&<div style={{fontSize:10,color:MUTED}}>Round {round} of {rounds}</div>}
+          {phase==="done"&&<div style={{fontSize:11,color:"#30D158",fontWeight:700,letterSpacing:1}}>DONE! 🎉</div>}
+        </div>
+      </div>
+      {/* Controls */}
+      {!running&&phase!=="work"&&phase!=="rest"&&(
+        <div style={{display:"flex",gap:20,flexWrap:"wrap",justifyContent:"center"}}>
+          {numInput("Work (s)",workSecs,setWorkSecs,5,300)}
+          {numInput("Rest (s)",restSecs,setRestSecs,5,300)}
+          {numInput("Rounds",rounds,setRounds,1,99)}
+        </div>
+      )}
+      {/* Buttons */}
+      <div style={{display:"flex",gap:12}}>
+        {phase==="idle"||phase==="done"?(
+          <button onClick={start} style={{padding:"13px 40px",borderRadius:12,border:"none",background:LIME,color:"#000",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:.5}}>
+            {phase==="done"?"Restart":"Start"}
+          </button>
+        ):(
+          <>
+            <button onClick={()=>setRunning(r=>!r)} style={{padding:"13px 28px",borderRadius:12,border:"none",background:running?"#1a1a1a":LIME,color:running?TEXT:"#000",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${running?"#333":LIME}`}}>
+              {running?"Pause":"Resume"}
+            </button>
+            <button onClick={stop} style={{padding:"13px 28px",borderRadius:12,border:`1px solid ${"#FF453A44"}`,background:"#1a0808",color:"#FF453A",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              Stop
+            </button>
+          </>
+        )}
+      </div>
+      {/* Summary */}
+      {phase==="idle"&&<div style={{fontSize:11,color:MUTED,textAlign:"center",lineHeight:1.8}}>
+        {rounds} rounds · {workSecs}s work / {restSecs}s rest<br/>
+        Total: ~{Math.round((workSecs+restSecs)*rounds/60)} min
+      </div>}
     </div>
   );
 }
@@ -2033,7 +2145,12 @@ function MainApp({user,board,onBack,onSignOut}){
     const{error}=await db.from("tasks").upsert(t2db(t,board.id));
     setSyncing(false);
     if(!error){setTasks(ts=>{const i=ts.findIndex(x=>x.id===t.id);if(i>=0){const c=[...ts];c[i]=t;return c;}return[...ts,t];});setEditing(null);}
-    else{console.error("saveTask DB error",error);alert("Save failed – your changes were not stored. Check your connection and try again.");}
+    else{
+      console.error("saveTask DB error",error);
+      const isStatusErr=error.message&&(error.message.includes("status")||error.message.includes("constraint")||error.message.includes("check"));
+      if(isStatusErr){alert("Save failed: your Supabase tasks table needs a migration for the NEXT UP column.\n\nRun this SQL in your Supabase dashboard:\n\nALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check;\nALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN (\'list\',\'do\',\'inprogress\',\'nextup\'));")}
+      else{alert("Save failed – your changes were not stored. Check your connection and try again.");}
+    }
   };
   const addTask=async t=>{
     appendLog({type:"add",title:t.title,col:t.status});
@@ -2149,7 +2266,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
+  const VIEWS=[{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"taba",icon:"🥊",label:"Taba"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
@@ -2209,9 +2326,10 @@ function MainApp({user,board,onBack,onSignOut}){
 
       {viewMode==="cal"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
-        <HourlyCalendar tasks={vis} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} nm={null}/>
+        <HourlyCalendar tasks={vis} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames}/>
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
+      {viewMode==="taba"&&<TabataView/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
