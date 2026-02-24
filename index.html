@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.24</title>
+<title>DayCrush v1.25</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -54,7 +54,7 @@ const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
+const DEF_SETTINGS={hideNotDueYet:true,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true,showHourlyCalendar:false};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.24</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.25</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -525,7 +525,38 @@ function ActionMgr({actions,onSave,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog}){
+function DisplayMdl({settings,onChange,onClose}){
+  const tog=k=>onChange({...settings,[k]:!settings[k]});
+  const sw=(key,on)=>(
+    <div onClick={()=>tog(key)} style={{width:36,height:20,borderRadius:99,background:on?LIME:"#333",position:"relative",cursor:"pointer",transition:"background .2s",flexShrink:0}}>
+      <div style={{position:"absolute",top:3,left:on?17:3,width:14,height:14,borderRadius:"50%",background:on?"#000":"#666",transition:"left .2s"}}/>
+    </div>
+  );
+  const row=(label,key)=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BORDER}`}}><div style={{fontSize:13,fontWeight:500}}>{label}</div>{sw(key,!!settings[key])}</div>);
+  const rowInv=(label,key)=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BORDER}`}}><div style={{fontSize:13,fontWeight:500}}>{label}</div>{sw(key,!settings[key])}</div>);
+  return(
+    <Modal onClose={onClose} maxWidth={320}>
+      <div style={{padding:"18px 18px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>👁 Display</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",marginBottom:6}}>CARDS</div>
+        {row("SHOW action","showActionTag")}
+        {row("SHOW bucket color","showBucketColor")}
+        {row("SHOW card background","showCardBg")}
+        {row("SHOW duration","showDuration")}
+        {row("SHOW frequency","showFrequency")}
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"12px 0 6px"}}>CALENDAR</div>
+        {row("SHOW tomorrow","showTomorrow")}
+        {rowInv("SHOW time frames","hideTimeFrames")}
+        {row("SHOW hourly view","showHourlyCalendar")}
+      </div>
+      <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:12}}>
+        <button onClick={onClose} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Done</button>
+      </div>
+    </Modal>
+  );
+}
+
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -563,14 +594,6 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
         {sec("👁 View-Specific")}
         {row("Hide DO column when empty","hideEmptyDo","Board view")}
         {row("Collapse overdue tasks","hideCalOverdue","Calendar view")}
-        {row("Show Tomorrow","showTomorrow","Calendar view")}
-        {row("Hide Time Frames","hideTimeFrames","Calendar view")}
-        {sec("🃏 Card Display")}
-        {row("Show Action tag","showActionTag","Default: hidden")}
-        {row("Show bucket accent color","showBucketColor","Left/right color bars")}
-        {row("Show card background color","showCardBg","Bucket bg tint")}
-        {row("Show duration","showDuration","⏱ min badge")}
-        {row("Show frequency","showFrequency","Repeat label")}
         <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onActions();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>⚡ Manage Actions</button>}
@@ -578,6 +601,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
           <button onClick={()=>{onShowLog();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📋 Activity Log</button>
           <button onClick={()=>onExportTasks()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Task List</button>
           <button onClick={()=>onExportLog()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Activity Log</button>
+          <button onClick={()=>{onBoardSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #5E5CE644",background:"#0a0a1a",cursor:"pointer",color:"#5E5CE6",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⚡ BOARD SORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>2h→IN PROGRESS · one-off→NEXT UP · today→TO DO</span></button>
           <button onClick={()=>{onCleanSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #4ECDC444",background:"#0a1a1a",cursor:"pointer",color:"#4ECDC4",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⟳ CLEANSORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>recurring→LIST · no freq→DO</span></button>
         </div>
       </div>
@@ -969,7 +993,102 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames}){
+function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb}){
+  const now=etNow(),nm=now.getHours()*60+now.getMinutes();
+  const HOUR_H=64; // px per hour
+  const MIN_H=24;  // minimum block height in px
+  const START_H=8,END_H=20; // 8am to 8pm
+  const HOURS=Array.from({length:END_H-START_H+1},(_,i)=>START_H+i);
+  const timed=tasks.filter(t=>t.time&&t.dueDate&&daysDiff(t.dueDate)<=0);
+  // Compute now-line position
+  const nowMin=Math.max(START_H*60,Math.min(END_H*60,nm));
+  const nowPct=(nowMin-START_H*60)/((END_H-START_H)*60);
+  const nowTop=nowPct*(HOURS.length-1)*HOUR_H;
+  const showNowLine=nm>=START_H*60&&nm<=END_H*60;
+  // Layout tasks: detect overlaps, assign columns
+  const evts=timed.map(t=>{
+    const sm=t2m(t.time);
+    const dur=t.duration?Math.max(parseInt(t.duration),15):30;
+    const em=sm+dur;
+    return{t,sm,em,dur,col:0,cols:1};
+  }).filter(e=>e.sm>=START_H*60&&e.sm<=END_H*60);
+  // Simple column assignment
+  const placed=[];
+  evts.forEach(e=>{
+    const overlapping=placed.filter(p=>p.sm<e.em&&p.em>e.sm);
+    const usedCols=overlapping.map(p=>p.col);
+    let col=0;while(usedCols.includes(col))col++;
+    e.col=col;
+    placed.push(e);
+  });
+  const maxCols=placed.reduce((m,e)=>Math.max(m,e.col+1),1);
+  // Update cols count for each event
+  placed.forEach(e=>{
+    const overlapping=placed.filter(p=>p!==e&&p.sm<e.em&&p.em>e.sm);
+    e.cols=Math.max(1,...overlapping.map(p=>p.col+1),e.col+1);
+  });
+  const totalH=(HOURS.length-1)*HOUR_H;
+  const bktColor=t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return bkt?.mainColor||null;};
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:"14px 16px",maxWidth:640,margin:"0 auto",width:"100%"}}>
+      <div style={{position:"relative",marginLeft:48}}>
+        {/* Hour lines */}
+        {HOURS.map((h,i)=>(
+          <div key={h} style={{position:"absolute",top:i*HOUR_H,left:-48,right:0,display:"flex",alignItems:"center",pointerEvents:"none"}}>
+            <span style={{fontSize:10,color:"#444",width:42,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1}}>
+              {h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`}
+            </span>
+            <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+          </div>
+        ))}
+        {/* Half-hour dashes */}
+        {HOURS.slice(0,-1).map((h,i)=>(
+          <div key={`half-${h}`} style={{position:"absolute",top:i*HOUR_H+HOUR_H/2,left:0,right:0,height:1,background:"#111",pointerEvents:"none"}}/>
+        ))}
+        {/* Now line */}
+        {showNowLine&&(
+          <div style={{position:"absolute",top:nowTop,left:-48,right:0,display:"flex",alignItems:"center",zIndex:10,pointerEvents:"none"}}>
+            <span style={{fontSize:9,color:LIME,width:42,textAlign:"right",paddingRight:4,fontWeight:700,flexShrink:0}}>{fmtTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`)}</span>
+            <div style={{width:8,height:8,borderRadius:"50%",background:LIME,flexShrink:0,marginLeft:-4,boxShadow:`0 0 6px ${LIME}`}}/>
+            <div style={{flex:1,height:2,background:`linear-gradient(90deg,${LIME},${LIME}44,transparent)`,borderRadius:1}}/>
+          </div>
+        )}
+        {/* Event blocks */}
+        <div style={{position:"relative",height:totalH,marginLeft:8}}>
+          {placed.map(({t,sm,em,dur,col,cols})=>{
+            const top=(sm-START_H*60)/60*HOUR_H;
+            const rawH=dur/60*HOUR_H;
+            const height=Math.max(rawH,MIN_H);
+            const width=`calc(${100/cols}% - 4px)`;
+            const left=`calc(${col*100/cols}%)`;
+            const bc=bktColor(t);
+            const passed=sm<=nm;
+            const longPast=passed&&(nm-sm)>120;
+            const borderCol=longPast?"#FF453A88":passed?"#30D15844":bc?bc+"44":"#2a2a2a";
+            const bg=longPast?"#1a0505":passed?"#071500":bc?bc+"11":"#1c1c1e";
+            const bkt=buckets.find(b=>b.id===t.bucketId);
+            return(
+              <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left,width,boxSizing:"border-box",paddingRight:4}}>
+                <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative",transition:"border-color .2s"}}>
+                  {bc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
+                  <div style={{paddingLeft:bc?6:0}}>
+                    <div style={{fontSize:11,fontWeight:700,color:passed?"#30D158":TEXT,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
+                    {height>28&&<div style={{fontSize:9,color:passed?"#30D15888":"#555",marginTop:2}}>{fmtTime(t.time)}{t.duration?` · ${t.duration}m`:""}{bkt?` · ${bkt.emoji}`:""}</div>}
+                  </div>
+                  {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${celebratingIds.has(t.id)?"#30D158":"#333"}`,background:celebratingIds.has(t.id)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
+                    {celebratingIds.has(t.id)&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
+                  </div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames,showHourlyCalendar}){
   const {col:dvBg,border:dvBo,text:dvTx,muted:dvMu,cardBg:dvCard}=useTheme();
   const sb=activeTab==="all";
   const rel=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
@@ -999,14 +1118,17 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
 
   const Row=({task})=>{
     const passed=task.time&&t2m(task.time)<=nm;
+    const longPast=passed&&(nm-t2m(task.time))>120;
     const soon=upcoming60(task);
     const isToday=task.dueDate&&daysDiff(task.dueDate)===0;
-    const timeColor=passed?"#30D158":soon?"#FF9F0A":"#555";
+    const timeColor=longPast?"#FF453A":passed?"#30D158":soon?"#FF9F0A":"#555";
+    const dotBg=longPast?"#FF453A":passed?"#30D158":task.dueDate&&daysDiff(task.dueDate)<0?"#FF453A":soon?"#FF9F0A22":"#2a2a2a";
+    const dotBorder=longPast?"#FF453A":passed?"#30D158":soon?"#FF9F0A":"#333";
     return(
       <div style={{display:"flex",alignItems:"flex-start",marginBottom:4}}>
         <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span style={{fontSize:10,color:timeColor,fontWeight:passed||soon?600:400,whiteSpace:"nowrap"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:12,flexShrink:0,width:16}}>
-          <div style={{width:8,height:8,borderRadius:"50%",background:passed?"#30D158":task.dueDate&&daysDiff(task.dueDate)<0?"#FF453A":soon?"#FF9F0A22":"#2a2a2a",border:`1.5px solid ${passed?"#30D158":soon?"#FF9F0A":"#333"}`}}/>
+          <div style={{width:8,height:8,borderRadius:"50%",background:dotBg,border:`1.5px solid ${dotBorder}`}}/>
           <div style={{width:1,flex:1,background:"#1a1a1a",minHeight:16,marginTop:2}}/>
         </div>
         <div style={{flex:1,paddingLeft:8,paddingBottom:4}}><TaskCard task={task} buckets={buckets} onEdit={onEdit} onDelete={onDelete} onCheck={onCheck} showBucket={sb} listMode={true} readOnly={readOnly} hideTime={true} hideToday={isToday&&!!task.time} celebrating={celebratingIds.has(task.id)} onDragStart={()=>{}} onDragOver={()=>{}} onDrop={()=>{}} isDragging={false}/></div>
@@ -1112,7 +1234,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
           onFocus={FL} onBlur={FB}/>
         <button onClick={submitQuick} style={{width:34,height:34,borderRadius:8,border:"none",background:quickTitle?LIME:"#1a1a1a",color:quickTitle?"#000":"#333",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s,color .15s",fontWeight:700}}>+</button>
       </div>}
-      <div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
+      {showHourlyCalendar?<HourlyCalendar tasks={td} buckets={buckets} onEdit={onEdit} onCheck={onCheck} readOnly={readOnly} celebratingIds={celebratingIds} sb={sb}/>:<div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
         {ov.length>0&&(
           <div style={{marginBottom:16,padding:"0 16px"}}>
             <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?10:0,transition:"margin .2s"}}>
@@ -1162,7 +1284,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
             {tmrw.map(t=><Row key={t.id} task={t}/>)}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -1271,19 +1393,36 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
       return groups2;
     }
     if(groupBy==="time"){
-      const timed=filtered.filter(t=>t.time).sort((a,b)=>t2m(a.time)-t2m(b.time));
-      const untimed=filtered.filter(t=>!t.time);
+      const srt=(a,b)=>t2m(a.time)-t2m(b.time);
+      const morning=filtered.filter(t=>t.time&&t2m(t.time)>=6*60&&t2m(t.time)<12*60).sort(srt);
+      const afternoon=filtered.filter(t=>t.time&&t2m(t.time)>=12*60&&t2m(t.time)<17*60).sort(srt);
+      const evening=filtered.filter(t=>t.time&&t2m(t.time)>=17*60&&t2m(t.time)<21*60).sort(srt);
+      const night=filtered.filter(t=>t.time&&(t2m(t.time)>=21*60||t2m(t.time)<6*60)).sort(srt);
+      const notime=filtered.filter(t=>!t.time);
       const grps=[];
-      if(timed.length)grps.push({key:"timed",label:"Timed",color:"#4ECDC4",items:timed,extra:null});
-      if(untimed.length)grps.push({key:"untimed",label:"No Time",color:"#444",items:untimed,extra:null});
+      if(morning.length)grps.push({key:"morning",label:"🌅 Morning",color:"#FF9F0A",items:morning,extra:null});
+      if(afternoon.length)grps.push({key:"afternoon",label:"☀️ Afternoon",color:LIME,items:afternoon,extra:null});
+      if(evening.length)grps.push({key:"evening",label:"🌆 Evening",color:"#5E5CE6",items:evening,extra:null});
+      if(night.length)grps.push({key:"night",label:"🌙 Night",color:"#0A84FF",items:night,extra:null});
+      if(notime.length)grps.push({key:"notime",label:"No Time",color:"#444",items:notime,extra:null});
       return grps;
     }
     if(groupBy==="frequency"){
-      const rec=filtered.filter(t=>t.frequency&&t.frequency.trim()).sort((a,b)=>a.frequency.localeCompare(b.frequency));
       const oneoff=filtered.filter(t=>!t.frequency||!t.frequency.trim());
+      const rec=filtered.filter(t=>t.frequency&&t.frequency.trim());
+      const numMap={},wdMap={},otherMap={};
+      rec.forEach(t=>{
+        const p=parseFreq(t.frequency);
+        if(p.type==="month_day"){const sk=p.day===-1?999:p.day;const lbl=p.day===-1?"Every Last":"Every "+p.day;if(!numMap[lbl])numMap[lbl]={lbl,sk,items:[]};numMap[lbl].items.push(t);}
+        else if(p.type==="days"&&!isNaN(parseInt(t.frequency.trim()))){const n=parseInt(t.frequency.trim());const lbl="Every "+n+" days";if(!numMap[lbl])numMap[lbl]={lbl,sk:n*0.01,items:[]};numMap[lbl].items.push(t);}
+        else if(p.type==="weekday"){const lbl=WDL[p.day];if(!wdMap[p.day])wdMap[p.day]={lbl,sk:p.day,items:[]};wdMap[p.day].items.push(t);}
+        else{const lbl=p.label||t.frequency;if(!otherMap[lbl])otherMap[lbl]={lbl,items:[]};otherMap[lbl].items.push(t);}
+      });
       const grps=[];
-      if(rec.length)grps.push({key:"rec",label:"Recurring",color:"#4ECDC4",items:rec,extra:null});
       if(oneoff.length)grps.push({key:"oneoff",label:"One-off",color:"#888",items:oneoff,extra:null});
+      Object.values(numMap).sort((a,b)=>a.sk-b.sk).forEach(v=>grps.push({key:"freq-"+v.lbl,label:v.lbl,color:"#5E5CE6",items:v.items,extra:null}));
+      Object.values(wdMap).sort((a,b)=>a.sk-b.sk).forEach(v=>grps.push({key:"freq-wd-"+v.lbl,label:"Every "+v.lbl,color:"#4ECDC4",items:v.items,extra:null}));
+      Object.values(otherMap).forEach(v=>grps.push({key:"freq-oth-"+v.lbl,label:v.lbl||"Other",color:"#FF9F0A",items:v.items,extra:null}));
       return grps;
     }
     return[];
@@ -1632,6 +1771,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const [showQuickAdd,setShowQuickAdd]=useState(false);
   const [showLog,setShowLog]=useState(false);
   const [showSearch,setShowSearch]=useState(false);
+  const [showDisplay,setShowDisplay]=useState(false);
   const logKey=`daycrush_log_${board.id}`;
   const getLog=()=>{try{return JSON.parse(localStorage.getItem(logKey)||"[]");}catch{return[];}};
   const appendLog=entry=>{try{const l=getLog();l.unshift({...entry,at:new Date().toISOString()});localStorage.setItem(logKey,JSON.stringify(l.slice(0,500)));}catch{}};
@@ -1649,7 +1789,7 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false,showActionTag:sr.data.show_action_tag||false,showBucketColor:sr.data.show_bucket_color!==false,showCardBg:sr.data.show_card_bg!==false,showDuration:sr.data.show_duration!==false,showFrequency:sr.data.show_frequency!==false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false,showActionTag:sr.data.show_action_tag||false,showBucketColor:sr.data.show_bucket_color!==false,showCardBg:sr.data.show_card_bg!==false,showDuration:sr.data.show_duration!==false,showFrequency:sr.data.show_frequency!==false,showHourlyCalendar:sr.data.show_hourly_cal||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1675,6 +1815,27 @@ function MainApp({user,board,onBack,onSignOut}){
     setTasks((tr.data||[]).map(dbToTask));
     setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
     setSyncing(false);
+  };
+
+  const boardSort=async()=>{
+    const now2=etNow(),nm2=now2.getHours()*60+now2.getMinutes();
+    const updated=tasks.map(t=>{
+      const hasFreq=t.frequency&&t.frequency.trim();
+      if(hasFreq)return t; // recurring stays where it is
+      const isToday=t.dueDate&&daysDiff(t.dueDate)===0;
+      const isOverdue=t.dueDate&&daysDiff(t.dueDate)<0;
+      // due in next 2h OR timed today and time already passed
+      const tm=t.time?t2m(t.time):null;
+      const in2h=isToday&&tm!==null&&(tm>nm2&&tm<=nm2+120);
+      const pastToday=isToday&&tm!==null&&tm<=nm2;
+      if(in2h||pastToday||isOverdue)return{...t,status:"inprogress"};
+      if(isToday)return{...t,status:"do"};
+      return{...t,status:"nextup"};
+    });
+    const changed=updated.filter((t,i)=>t.status!==tasks[i].status);
+    if(!changed.length)return;
+    setTasks(updated);
+    await db.from("tasks").upsert(changed.map(t=>t2db(t,board.id)));
   };
 
   const cleanSort=async()=>{
@@ -1775,7 +1936,7 @@ function MainApp({user,board,onBack,onSignOut}){
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,show_hourly_cal:s.showHourlyCalendar||false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -1827,7 +1988,8 @@ function MainApp({user,board,onBack,onSignOut}){
     showBucketColor:settings.showBucketColor!==false,
     showCardBg:settings.showCardBg!==false,
     showDuration:settings.showDuration!==false,
-    showFrequency:settings.showFrequency!==false
+    showFrequency:settings.showFrequency!==false,
+    showHourlyCalendar:!!settings.showHourlyCalendar
   };
   return(
     <ThemeCtx.Provider value={theme}>
@@ -1859,7 +2021,7 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       )}
 
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames}/>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} showHourlyCalendar={settings.showHourlyCalendar}/>}
       {viewMode==="list"&&<DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
 
       <div style={{borderTop:`1px solid ${theme.border}`,background:theme.navBg,flexShrink:0}}>
@@ -1889,6 +2051,10 @@ function MainApp({user,board,onBack,onSignOut}){
               <span style={{fontSize:15,lineHeight:1,display:"inline-block",animation:syncing?"spin .8s linear infinite":"none"}}>↻</span>
               <span style={{fontSize:7,letterSpacing:.3}}>Sync</span>
             </button>
+            <button onClick={()=>setShowDisplay(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
+              <span style={{fontSize:15,lineHeight:1}}>👁</span>
+              <span style={{fontSize:7,letterSpacing:.3}}>Display</span>
+            </button>
             <button onClick={()=>setShowSettings(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
               <span style={{fontSize:15,lineHeight:1}}>⚙</span>
               <span style={{fontSize:7,letterSpacing:.3}}>Settings</span>
@@ -1907,7 +2073,7 @@ function MainApp({user,board,onBack,onSignOut}){
       )}
       {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onShowLog={()=>setShowLog(true)}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
@@ -1918,6 +2084,7 @@ function MainApp({user,board,onBack,onSignOut}){
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-log-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
         }}
       />}
+      {showDisplay&&<DisplayMdl settings={settings} onChange={saveSettings} onClose={()=>setShowDisplay(false)}/>}
       {showLog&&<ActivityLog logKey={logKey} onClose={()=>setShowLog(false)}/>}
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
