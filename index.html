@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.21</title>
+<title>DayCrush v1.22</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -51,6 +51,7 @@ const LIME="#CAFF4C",BORDER="#2a2a2a",TEXT="#e8e8e8",MUTED="#555",CARD_BG="#1c1c
 const COLS=[{id:"inprogress",label:"IN PROGRESS",accent:"#0A84FF"},{id:"do",label:"DO",accent:LIME},{id:"list",label:"LIST",accent:"#888"}];
 const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0A"},{id:"high",label:"High",emoji:"",color:"#FF453A",dot:"#FF453A"},{id:"normal",label:"Normal",emoji:"",color:MUTED,dot:null},{id:"low",label:"Low",emoji:"",color:"#1d9bf0",dot:"#1d9bf0"}];
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
+const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false};
@@ -143,7 +144,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.21</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.22</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -471,7 +472,51 @@ function BucketMgr({buckets,onSave,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onClose,boardName,userRole,onCleanSort,onShowLog}){
+
+function ActionMgr({actions,onSave,onClose}){
+  const [list,setList]=useState(actions.map(a=>({...a}))),[nw,setNw]=useState({emoji:"⚡",label:""});
+  const [confirmDel,setConfirmDel]=useState(null);
+  const upd=(id,k,v)=>setList(ls=>ls.map(a=>a.id===id?{...a,[k]:v}:a));
+  const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"⚡",label:""});};
+  const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setConfirmDel(null);};
+  return(
+    <Modal onClose={onClose} maxWidth={360}>
+      <div style={{padding:"18px 18px 0"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>⚡ Actions</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
+        <div style={{maxHeight:"55vh",overflowY:"auto",paddingRight:2}}>
+          {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
+            <div key={a.id} style={{marginBottom:4}}>
+              <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
+                <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+                <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+                {confirmDel===a.id?(
+                  <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                    <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
+                    <button onClick={()=>setConfirmDel(null)} style={{padding:"3px 7px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>No</button>
+                    <button onClick={()=>del(a.id)} style={{padding:"3px 7px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:700}}>Yes</button>
+                  </div>
+                ):(
+                  <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 6px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:7,alignItems:"center",background:CARD_BG,borderRadius:8,padding:"7px 9px",marginTop:8,border:`1px solid ${BORDER}`}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New action…" style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontWeight:800,fontSize:12,color:"#000",fontFamily:"inherit"}}>+</button>
+        </div>
+      </div>
+      <div style={{padding:"12px 18px 18px",display:"flex",justifyContent:"flex-end",gap:8,borderTop:`1px solid ${BORDER}`,marginTop:12}}>
+        <button onClick={onClose} style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:MUTED,fontFamily:"inherit",fontSize:12}}>Cancel</button>
+        <button onClick={()=>onSave(list)} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Save</button>
+      </div>
+    </Modal>
+  );
+}
+
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -513,6 +558,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onClose,boardName,us
         {row("Hide Time Frames","hideTimeFrames","Calendar view")}
         <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
+          {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onActions();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>⚡ Manage Actions</button>}
           <button onClick={()=>{onMembers();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>👥 Board Members</button>
           <button onClick={()=>{onShowLog();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📋 Activity Log</button>
           <button onClick={()=>{onCleanSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #4ECDC444",background:"#0a1a1a",cursor:"pointer",color:"#4ECDC4",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⟳ CLEANSORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>recurring→LIST · no freq→DO</span></button>
@@ -588,7 +634,7 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
   );
 }
 
-function EditMdl({task,tasks,buckets,onSave,onClose,onDelete,readOnly}){
+function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
   const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",keepLink:task.keepLink||""});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
@@ -640,6 +686,7 @@ function EditMdl({task,tasks,buckets,onSave,onClose,onDelete,readOnly}){
         <label style={bLbl}>Task Name</label>
         <input value={f.title} onChange={e=>set("title",e.target.value)} disabled={readOnly} style={bInp} onFocus={FL} onBlur={FB}/>
 
+        {/* Row 1: Bucket + Action */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
             <label style={bLbl}>Bucket</label>
@@ -649,12 +696,58 @@ function EditMdl({task,tasks,buckets,onSave,onClose,onDelete,readOnly}){
             </select>
           </div>
           <div>
-            <label style={bLbl}>Frequency</label>
-            <input value={f.frequency} onChange={e=>setFreq(e.target.value)} disabled={readOnly} placeholder="# or word" style={{...bInp,marginBottom:0}} onFocus={FL} onBlur={FB}/>
-            {fp.type&&<div style={{fontSize:10,color:"#4ECDC4",marginTop:3}}>→ {fp.label}</div>}
+            <label style={bLbl}>Action</label>
+            {f.action==="__custom__"?(
+              <input autoFocus value={f._customAction||""} onChange={e=>set("_customAction",e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){set("action",f._customAction||"");set("_customAction",undefined);}if(e.key==="Escape")set("action","");}} placeholder="Type action…" style={{...bInp,marginBottom:0}} onFocus={FL} onBlur={e=>{FB(e);if(f._customAction){set("action",f._customAction);set("_customAction",undefined);}else set("action","");}}/>
+            ):(
+              <select value={f.action||""} onChange={e=>set("action",e.target.value)} disabled={readOnly} style={{...selS,marginBottom:0}}>
+                <option value="">— none —</option>
+                {[...(actions||DEFAULT_ACTIONS)].sort((a,b)=>a.label.localeCompare(b.label)).map(a=><option key={a.id} value={a.label}>{a.emoji} {a.label}</option>)}
+                {f.action&&!(actions||DEFAULT_ACTIONS).find(a=>a.label===f.action)&&<option value={f.action}>{f.action}</option>}
+                {!readOnly&&<option value="__custom__">✏ Add new…</option>}
+              </select>
+            )}
           </div>
         </div>
 
+        {/* Row 2: Due Date + Time + Frequency */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+          <div>
+            <label style={bLbl}>Due Date</label>
+            <input type="date" value={f.dueDate||""} onChange={e=>set("dueDate",e.target.value)} disabled={readOnly} style={{...bInp,colorScheme:"dark",marginBottom:0,fontSize:11}}/>
+          </div>
+          <div>
+            <label style={bLbl}>Time</label>
+            <input type="time" value={f.time||""} onChange={e=>set("time",e.target.value)} disabled={readOnly} style={{...bInp,colorScheme:"dark",marginBottom:0,fontSize:11}}/>
+          </div>
+          <div>
+            <label style={bLbl}>Frequency</label>
+            <input value={f.frequency} onChange={e=>setFreq(e.target.value)} disabled={readOnly} placeholder="# or word" style={{...bInp,marginBottom:0,fontSize:11}} onFocus={FL} onBlur={FB}/>
+            {fp.type&&<div style={{fontSize:9,color:"#4ECDC4",marginTop:2}}>→ {fp.label}</div>}
+          </div>
+        </div>
+
+        {/* Row 3: Link + Keep side by side */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={bLbl}>Link 🔗</label>
+            <div style={{display:"flex",gap:5,alignItems:"center",height:32}}>
+              {(f.link&&f.link.trim())?<a href={f.link.startsWith("http")?f.link:"https://"+f.link} target="_blank" rel="noopener" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,border:"1px solid #1a5c6a",background:"#071014",color:"#4ECDC4",textDecoration:"none",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}} onMouseEnter={e=>e.currentTarget.style.background="#0d2030"} onMouseLeave={e=>e.currentTarget.style.background="#071014"}>🔗 Open</a>:null}
+              {!readOnly&&<input value={f.link||""} onChange={e=>set("link",e.target.value)} placeholder="https://…" style={{...bInp,marginBottom:0,flex:1,fontSize:11,height:32,minWidth:0}} onFocus={FL} onBlur={FB}/>}
+              {readOnly&&!(f.link&&f.link.trim())&&<span style={{fontSize:11,color:MUTED,fontStyle:"italic"}}>No link</span>}
+            </div>
+          </div>
+          <div>
+            <label style={bLbl}>Keep 📌</label>
+            <div style={{display:"flex",gap:5,alignItems:"center",height:32}}>
+              {(f.keepLink&&f.keepLink.trim())?<a href={f.keepLink.startsWith("http")?f.keepLink:"https://"+f.keepLink} target="_blank" rel="noopener" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,border:"1px solid #1a5c6a",background:"#071014",color:"#4ECDC4",textDecoration:"none",fontSize:11,fontWeight:600,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}} onMouseEnter={e=>e.currentTarget.style.background="#0d2030"} onMouseLeave={e=>e.currentTarget.style.background="#071014"}>📌 Open</a>:null}
+              {!readOnly&&<input value={f.keepLink||""} onChange={e=>set("keepLink",e.target.value)} placeholder="Keep URL…" style={{...bInp,marginBottom:0,flex:1,fontSize:11,height:32,minWidth:0}} onFocus={FL} onBlur={FB}/>}
+              {readOnly&&!(f.keepLink&&f.keepLink.trim())&&<span style={{fontSize:11,color:MUTED,fontStyle:"italic"}}>No link</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Row 4: Notes */}
         <label style={bLbl}>Notes</label>
         {readOnly?(
           <div style={{...bInp,minHeight:40,whiteSpace:"pre-wrap",wordBreak:"break-word",cursor:"default",lineHeight:1.5,fontSize:12}}>
@@ -667,67 +760,6 @@ function EditMdl({task,tasks,buckets,onSave,onClose,onDelete,readOnly}){
         ):(
           <textarea ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}}} value={f.notes||""} onChange={e=>{set("notes",e.target.value);const el=e.target;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}} disabled={readOnly} rows={2} style={{...bInp,resize:"none",overflow:"auto",minHeight:56,maxHeight:180}} onFocus={FL} onBlur={FB}/>
         )}
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={bLbl}>Action</label>
-            {f.action==="__custom__"?(
-              <div style={{display:"flex",gap:5}}>
-                <input autoFocus value={f._customAction||""} onChange={e=>set("_customAction",e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){set("action",f._customAction||"");set("_customAction",undefined);}if(e.key==="Escape")set("action","");}} placeholder="Type action…" style={{...bInp,marginBottom:0,flex:1}} onFocus={FL} onBlur={e=>{FB(e);if(f._customAction){set("action",f._customAction);set("_customAction",undefined);}else set("action","");}}/>
-              </div>
-            ):(
-              <select value={f.action||""} onChange={e=>set("action",e.target.value)} disabled={readOnly} style={{...selS,marginBottom:0}}>
-                <option value="">— none —</option>
-                <option value="Buy">🛒 Buy</option>
-                <option value="Call">📞 Call</option>
-                <option value="Email">📧 Email</option>
-                <option value="Research">🔍 Research</option>
-                <option value="Review">👁 Review</option>
-                <option value="Schedule">📅 Schedule</option>
-                <option value="Watch">👀 Watch</option>
-                <option value="Read">📖 Read</option>
-                <option value="Fix">🔧 Fix</option>
-                <option value="Build">🏗 Build</option>
-                <option value="Plan">📋 Plan</option>
-                <option value="Pay">💳 Pay</option>
-                {f.action&&!["Buy","Call","Email","Research","Review","Schedule","Watch","Read","Fix","Build","Plan","Pay","__custom__"].includes(f.action)&&<option value={f.action}>{f.action}</option>}
-                {!readOnly&&<option value="__custom__">✏ Add new…</option>}
-              </select>
-            )}
-          </div>
-          <div>
-            <label style={bLbl}>Link</label>
-            <div style={{display:"flex",gap:5,alignItems:"center"}}>
-              {hasLink&&!editingLink?(
-                <>
-                  <a href={f.link.startsWith("http")?f.link:"https://"+f.link} target="_blank" rel="noopener" style={{flex:1,fontSize:11,color:"#4ECDC4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:"none"}} title={f.link}>🔗 {f.link}</a>
-                  {!readOnly&&<button onClick={()=>setEditingLink(true)} style={{padding:"3px 7px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:MUTED,cursor:"pointer",fontSize:10,fontFamily:"inherit",flexShrink:0}}>Edit</button>}
-                  {!readOnly&&<button onClick={()=>{set("link","");setEditingLink(false);}} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:13,flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>✕</button>}
-                </>
-              ):(
-                <input value={f.link||""} onChange={e=>set("link",e.target.value)} disabled={readOnly} placeholder="https://…" style={{...bInp,marginBottom:0,flex:1,fontSize:11}} onFocus={FL} onBlur={e=>{FB(e);setEditingLink(false);}}/>
-              )}
-            </div>
-          </div>
-        </div>
-        <div style={{marginBottom:12}}>
-          <label style={bLbl}>Keep 📌</label>
-          {(()=>{const kl=f.keepLink&&f.keepLink.trim();const kUrl=kl?(kl.startsWith("http")?kl:"https://"+kl):"";return(<div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {kl?<a href={kUrl} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:7,border:"1px solid #1a5c6a",background:"#071014",color:"#4ECDC4",textDecoration:"none",fontSize:12,fontWeight:600,cursor:"pointer",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.background="#0d2030"} onMouseLeave={e=>e.currentTarget.style.background="#071014"}>📌 Open Keep</a>:<span style={{fontSize:11,color:MUTED,fontStyle:"italic"}}>No Keep link</span>}
-            {!readOnly&&<input value={f.keepLink||""} onChange={e=>set("keepLink",e.target.value)} placeholder="Keep / bookmark URL…" style={{...bInp,marginBottom:0,flex:1,fontSize:11}} onFocus={FL} onBlur={FB}/>}
-          </div>);})()}
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={bLbl}>Due Date</label>
-            <input type="date" value={f.dueDate||""} onChange={e=>set("dueDate",e.target.value)} disabled={readOnly} style={{...bInp,colorScheme:"dark",marginBottom:0}}/>
-          </div>
-          <div>
-            <label style={bLbl}>Time</label>
-            <input type="time" value={f.time||""} onChange={e=>set("time",e.target.value)} disabled={readOnly} style={{...bInp,colorScheme:"dark",marginBottom:0}}/>
-          </div>
-        </div>
 
         {/* ── More Section ── */}
         <MoreSection open={showMore} onToggle={()=>setShowMore(o=>!o)}>
@@ -864,7 +896,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
           return showMeta?(
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:4}}>
               <div style={{display:"flex",alignItems:"center",gap:6,flex:1,flexWrap:"wrap"}}>
-                {task.action&&<span style={{fontSize:9,color:"#4ECDC4",fontWeight:700,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:"1px solid #0d3a3a",background:"#061516"}}>{task.action.toUpperCase()}</span>}
+                {task.action&&<span style={{fontSize:9,color:"#fff",fontWeight:700,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:"1px solid #fff",background:"#000"}}>{task.action.toUpperCase()}</span>}
                 {!showBucket&&bkt&&<span style={{fontSize:9,color:bktMainColor||"#555",fontWeight:600,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:`1px solid ${bktMainColor?bktMainColor+"33":"#2a2a2a"}`}}>{bkt.emoji} {bkt.label}</span>}
                 {isOneOff&&<span style={{fontSize:9,color:"#383838",fontWeight:600,letterSpacing:.4,textTransform:"uppercase",borderRadius:3,padding:"1px 4px",border:"1px solid #2a2a2a"}}>one-off</span>}
                 {task.time&&!hideTime&&<span style={{fontSize:10,color:"#888",fontWeight:500}}>{fmtTime(task.time)}</span>}
@@ -1326,6 +1358,50 @@ function BucketDropdown({tabs,activeTab,onSelect}){
   );
 }
 
+
+function ActionDropdown({actions,activeAction,onSelect}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef();
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  const allOpt={id:"all",emoji:"",label:"ALL"};
+  const sorted=[...actions].sort((a,b)=>a.label.localeCompare(b.label));
+  const opts=[allOpt,...sorted];
+  const active=opts.find(a=>a.id===activeAction)||allOpt;
+  const isAll=active.id==="all";
+  return(
+    <div ref={ref} style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{display:"flex",alignItems:"center",gap:7,padding:"5px 10px",borderRadius:8,border:`1px solid ${open?"#444":BORDER}`,background:"#111",cursor:"pointer",color:TEXT,fontFamily:"inherit",fontSize:12,minWidth:90,justifyContent:"space-between"}}>
+        <span style={{display:"flex",alignItems:"center",gap:5}}>
+          {!isAll&&<span style={{fontSize:14}}>{active.emoji}</span>}
+          <span style={{fontWeight:600,maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{active.label}</span>
+        </span>
+        <span style={{fontSize:9,color:MUTED,marginLeft:4}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:"#111",border:"1px solid #444",borderRadius:10,overflow:"hidden",zIndex:200,minWidth:160,boxShadow:"0 8px 32px rgba(0,0,0,.8)"}}>
+          {opts.map(opt=>{
+            const sel=opt.id===activeAction;
+            return(
+              <button key={opt.id} onClick={()=>{onSelect(opt.id);setOpen(false);}}
+                style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:"10px 14px",background:sel?"#1a1a1a":"transparent",border:"none",cursor:"pointer",color:sel?TEXT:MUTED,fontFamily:"inherit",fontSize:13,textAlign:"left",borderLeft:sel?`2px solid ${LIME}`:"2px solid transparent"}}
+                onMouseEnter={e=>{if(!sel)e.currentTarget.style.background="#1a1a1a";}}
+                onMouseLeave={e=>{if(!sel)e.currentTarget.style.background="transparent";}}>
+                {opt.id!=="all"&&<span style={{fontSize:14}}>{opt.emoji}</span>}
+                <span style={{fontWeight:sel?700:400}}>{opt.label}</span>
+                {sel&&<span style={{marginLeft:"auto",color:LIME,fontSize:12}}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuickAddModal({boardId,buckets,onAdd,onClose}){
   const [title,setTitle]=useState("");
   const [date,setDate]=useState(todayStr());
@@ -1390,6 +1466,7 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
 
 function MainApp({user,board,onBack,onSignOut}){
   const [tasks,setTasks]=useState([]),[buckets,setBuckets]=useState([]),[settings,setSettings]=useState(DEF_SETTINGS);
+  const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
   const [editing,setEditing]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
   const [activeTab,setActiveTab]=useState("all"),[viewMode,setViewMode]=useState("day"),[draggingId,setDraggingId]=useState(null);
   const [loading,setLoading]=useState(true),[userRole,setUserRole]=useState("editor"),[syncing,setSyncing]=useState(false);
@@ -1414,7 +1491,7 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);}
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1535,6 +1612,11 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
+  const saveActions=async list=>{
+    setActions(list);setShowActions(false);
+    await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)});
+  };
+
   const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false});};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
@@ -1560,6 +1642,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const childBucketIds=useMemo(()=>activeTab==="all"?[]:buckets.filter(b=>b.parentId===activeTab).map(b=>b.id),[activeTab,buckets]);
   const vis=tasks.filter(t=>{
     if(activeTab!=="all"&&t.bucketId!==activeTab&&!childBucketIds.includes(t.bucketId))return false;
+    if(activeAction!=="all"&&(t.action||"")!==activeAction)return false;
     if(settings.hideNotDueYet&&t.dueDate&&daysDiff(t.dueDate)>0)return false;
     if(settings.hideLowPriority&&t.priority==="low")return false;
     return true;
@@ -1601,6 +1684,8 @@ function MainApp({user,board,onBack,onSignOut}){
             {!readOnly&&<button onClick={()=>setShowQuickAdd(true)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:LIME,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontWeight:300}} onMouseEnter={e=>{e.currentTarget.style.background="#1a2200";e.currentTarget.style.borderColor=LIME;}} onMouseLeave={e=>{e.currentTarget.style.background="#111";e.currentTarget.style.borderColor=BORDER;}}>+</button>}
             {/* Bucket dropdown */}
             <BucketDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}/>
+            {/* Action dropdown */}
+            <ActionDropdown actions={actions} activeAction={activeAction} onSelect={setActiveAction}/>
           </div>
         </div>
       </div>
@@ -1659,11 +1744,12 @@ function MainApp({user,board,onBack,onSignOut}){
           onClose={()=>setShowQuickAdd(false)}
         />
       )}
-      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
+      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onShowLog={()=>setShowLog(true)}/>}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onShowLog={()=>setShowLog(true)}/>}
       {showLog&&<ActivityLog logKey={logKey} onClose={()=>setShowLog(false)}/>}
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
+      {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
       {showMembers&&<MembersModal board={board} userRole={userRole} currentUser={user} onClose={()=>setShowMembers(false)}/>}
     </div>
     </ThemeCtx.Provider>
