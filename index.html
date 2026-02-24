@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.27</title>
+<title>DayCrush v2.18</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -54,7 +54,7 @@ const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:true,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true,showHourlyCalendar:false};
+const DEF_SETTINGS={hideNotDueYet:true,hideLowPriority:false,hideEmptyDo:false,defaultView:'cal',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.27</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.18</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -603,7 +603,6 @@ function DisplayMdl({settings,onChange,onClose}){
         {sec("CALENDAR")}
         {row("SHOW tomorrow","showTomorrow")}
         {rowInv("SHOW time frames","hideTimeFrames")}
-        {row("SHOW hourly view","showHourlyCalendar")}
       </div>
       <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:12}}>
         <button onClick={onClose} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Done</button>
@@ -612,7 +611,7 @@ function DisplayMdl({settings,onChange,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort}){
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -623,7 +622,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
     </div>
   );
   const sec=label=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>{label}</div>);
-  const VIEWS=[{id:"day",label:"Calendar ▦"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"}];
+  const VIEWS=[{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"}];
   return(
     <Modal onClose={onClose} maxWidth={360}>
       <div style={{padding:"18px 18px 4px"}}>
@@ -633,30 +632,29 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
         {sec("🌍 Universal")}
         {row("Light Mode","lightMode","This board only")}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
-          <div><div style={{fontSize:13}}>Day rollover time</div><div style={{fontSize:10,color:MUTED,marginTop:2}}>Before this = still today</div></div>
+          <div style={{fontSize:13}}>Rollover</div>
           <select value={settings.dayStartTime||"00:30"} onChange={e=>onChange({...settings,dayStartTime:e.target.value})} style={selSt}>
             {["23:00","23:30","00:00","00:30","01:00","01:30","02:00","02:30","03:00"].map(t=>{const[hh,mm]=t.split(":");const hr=parseInt(hh);const is11=hr>=23;const lbl=is11?`${hr-12}:${mm} PM`:`${hr===0?12:hr}:${mm} AM`;return <option key={t} value={t}>{lbl}</option>;})}
           </select>
         </div>
-        {sec("📋 Board Settings")}
+        {sec("📋 Board")}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
-          <div><div style={{fontSize:13}}>Default View</div><div style={{fontSize:10,color:MUTED,marginTop:2}}>Opens this view on load</div></div>
-          <select value={settings.defaultView||"day"} onChange={e=>onChange({...settings,defaultView:e.target.value})} style={selSt}>
+          <div style={{fontSize:13}}>Default View</div>
+          <select value={settings.defaultView||"cal"} onChange={e=>onChange({...settings,defaultView:e.target.value})} style={selSt}>
             {VIEWS.map(v=><option key={v.id} value={v.id}>{v.label}</option>)}
           </select>
         </div>
-        {sec("👁 View-Specific")}
-        {row("Hide DO column when empty","hideEmptyDo","Board view")}
-        {row("Collapse overdue tasks","hideCalOverdue","Calendar view")}
-        <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
-          {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
-          {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onActions();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>⚡ Manage Actions</button>}
-          <button onClick={()=>{onMembers();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>👥 Board Members</button>
-          <button onClick={()=>{onShowLog();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📋 Activity Log</button>
-          <button onClick={()=>onExportTasks()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Task List</button>
-          <button onClick={()=>onExportLog()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Activity Log</button>
-          <button onClick={()=>{onBoardSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #5E5CE644",background:"#0a0a1a",cursor:"pointer",color:"#5E5CE6",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⚡ BOARD SORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>2h→IN PROGRESS · one-off→NEXT UP · today→TO DO</span></button>
-          <button onClick={()=>{onCleanSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #4ECDC444",background:"#0a1a1a",cursor:"pointer",color:"#4ECDC4",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⟳ CLEANSORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>recurring→LIST · no freq→DO</span></button>
+        <div style={{paddingTop:12,display:"flex",flexDirection:"column",gap:6}}>
+          {(()=>{
+            const btn=(label,onClick,col)=>(<button onClick={onClick} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"9px 8px",borderRadius:8,border:`1px solid ${col?col+"44":BORDER}`,background:col?"#0a0a0a":CARD_BG,cursor:"pointer",color:col||TEXT,fontSize:11,fontFamily:"inherit",fontWeight:col?700:400}}>{label}</button>);
+            return(<>
+              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}</div>}
+              <div style={{display:"flex",gap:6}}>{btn("👥 Members",()=>{onMembers();onClose();})}{btn("📋 Log",()=>{onShowLog();onClose();})}</div>
+              <div style={{display:"flex",gap:6}}>{btn("📤 Tasks",()=>onExportTasks())}{btn("📤 Log",()=>onExportLog())}</div>
+              <div style={{display:"flex",gap:6}}>{btn("⚡ Board Sort",()=>{onBoardSort();onClose();},"#5E5CE6")}{btn("⟳ Clean Sort",()=>{onCleanSort();onClose();},"#4ECDC4")}</div>
+              <div style={{display:"flex",gap:6}}>{btn("💤 Snooze Overdue",()=>{onSnoozeOverdue();onClose();},"#FF9F0A")}</div>
+            </>);
+          })()}
         </div>
       </div>
       <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:14}}><button onClick={onClose} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Done</button></div>
@@ -942,7 +940,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const bgActual=(bktBgColor&&sCardBg)?bktBgColor+"22":null;
   const isLight=bktBgColor?hexLum(bktBgColor)<0.3:false;
   const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bgActual?bgActual:tcBg;
-  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":!celebrating_&&!isDone&&task.priority==="high"?"#FF453A88":dlShow?.color==="#FF453A"?"#FF453A44":bktMainColor?bktMainColor+"33":tcBorder;
+  const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":dlShow?.color==="#FF453A"?"#FF453A44":bktMainColor?bktMainColor+"33":tcBorder;
   const cardText=null;
   return(
     <div draggable={!listMode&&!readOnly&&!celebrating_&&!isDone} onDragStart={e=>{e.dataTransfer.effectAllowed="move";onDragStart&&onDragStart(task.id);}} onDragOver={e=>{e.preventDefault();onDragOver&&onDragOver(task.id);}} onDrop={e=>{e.preventDefault();onDrop&&onDrop(task.id);}} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
@@ -967,13 +965,12 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
             {(celebrating_||isDone)&&<span style={{color:"#000",fontSize:9,fontWeight:900,lineHeight:1}}>✓</span>}
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
-            <div style={{fontSize:13,color:(celebrating_||isDone)?"#30D158":cardText||(task.priority==="low"?"#aaa":TEXT),lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>
-              {task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}
-            </div>
+            {(()=>{const now2=etNow();const nm2=now2.getHours()*60+now2.getMinutes();const tm2=task.time?t2m(task.time):null;const isOvd=task.dueDate&&daysDiff(task.dueDate)<0;const longPastCard=(task.dueDate&&daysDiff(task.dueDate)===0&&tm2!==null&&tm2<=nm2&&(nm2-tm2)>120)||isOvd;const titleCol=(celebrating_||isDone)?"#30D158":longPastCard?"#FF453A":cardText||(task.priority==="low"?"#aaa":TEXT);return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
           </div>
           <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4}}>
             {celebrating_&&<span style={{fontSize:12,color:"#30D158",fontWeight:700}}>DONE! ✅</span>}
             {isDone&&!celebrating_&&<span style={{fontSize:10,color:"#30D15877",fontWeight:600}}>✓ done</span>}
+            {!celebrating_&&!isDone&&task.priority==="high"&&<span style={{fontSize:11}}>🚨</span>}
             {!celebrating_&&!isDone&&showBucket&&bkt&&(task.link?<a href={task.link.startsWith("http")?task.link:"https://"+task.link} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{fontSize:13,opacity:.7,textDecoration:"none",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.7}>{bkt.emoji}</a>:<span style={{fontSize:13,opacity:.7}}>{bkt.emoji}</span>)}
           </div>
         </div>
@@ -1213,7 +1210,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
 }
 
 
-function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames,showHourlyCalendar,onOpenModal,hideTimeFramesSetting}){
+function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId,hideCalOverdue,showTomorrow,hideTimeFrames,onOpenModal}){
   const {col:dvBg,border:dvBo,text:dvTx,muted:dvMu,cardBg:dvCard}=useTheme();
   const sb=activeTab==="all";
   const rel=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
@@ -1341,7 +1338,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
       <QuickAddBar boardId={boardId} onAdd={onAddTask} onOpenModal={onOpenModal} readOnly={readOnly}/>
-      {showHourlyCalendar?<HourlyCalendar tasks={tasks} buckets={buckets} onEdit={onEdit} onCheck={onCheck} readOnly={readOnly} celebratingIds={celebratingIds} sb={sb} onAddTask={onAddTask} hideTimeFrames={hideTimeFrames} nm={nm}/>:<div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 0",maxWidth:600,margin:"0 auto",width:"100%"}}>
         {ov.length>0&&(
           <div style={{marginBottom:16,padding:"0 16px"}}>
             <button onClick={()=>setOvExpanded(o=>!o)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:ovExpanded?"#1a0808":"#110808",border:"1px solid #FF453A44",borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"inherit",marginBottom:ovExpanded?10:0,transition:"margin .2s"}}>
@@ -1391,7 +1388,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
             {tmrw.map(t=><Row key={t.id} task={t}/>)}
           </div>
         )}
-      </div>}
+      </div>
     </div>
   );
 }
@@ -1930,7 +1927,7 @@ function MainApp({user,board,onBack,onSignOut}){
           hideNotDueYet:lc.hideNotDueYet!==undefined?lc.hideNotDueYet:(sr.data.hide_not_due_yet||false),
           hideLowPriority:lc.hideLowPriority!==undefined?lc.hideLowPriority:(sr.data.hide_low_priority||false),
           hideEmptyDo:lc.hideEmptyDo!==undefined?lc.hideEmptyDo:(sr.data.hide_empty_do||false),
-          defaultView:lc.defaultView||sr.data.default_view||"day",
+          defaultView:lc.defaultView||sr.data.default_view||"cal",
           hideCalOverdue:lc.hideCalOverdue!==undefined?lc.hideCalOverdue:(sr.data.hide_cal_overdue||false),
           dayStartTime:lc.dayStartTime||sr.data.day_start_time||'00:30',
           showTomorrow:lc.showTomorrow!==undefined?lc.showTomorrow:(sr.data.show_tomorrow||false),
@@ -1940,8 +1937,7 @@ function MainApp({user,board,onBack,onSignOut}){
           showBucketColor:lc.showBucketColor!==undefined?lc.showBucketColor:(sr.data.show_bucket_color!==false),
           showCardBg:lc.showCardBg!==undefined?lc.showCardBg:(sr.data.show_card_bg!==false),
           showDuration:lc.showDuration!==undefined?lc.showDuration:(sr.data.show_duration!==false),
-          showFrequency:lc.showFrequency!==undefined?lc.showFrequency:(sr.data.show_frequency!==false),
-          showHourlyCalendar:lc.showHourlyCalendar!==undefined?lc.showHourlyCalendar:(sr.data.show_hourly_cal||false)
+          showFrequency:lc.showFrequency!==undefined?lc.showFrequency:(sr.data.show_frequency!==false)
         };
         setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);
         if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
@@ -1993,8 +1989,30 @@ function MainApp({user,board,onBack,onSignOut}){
     });
     const changed=updated.filter((t,i)=>t.status!==tasks[i].status);
     if(!changed.length)return;
-    setTasks(updated);
-    await db.from("tasks").upsert(changed.map(t=>t2db(t,board.id)));
+    // Sort each column by time after moving
+    const colOrder=["inprogress","nextup","do","list"];
+    const final=updated.map(t=>{
+      const colIdx=colOrder.indexOf(t.status);
+      const colTasks=updated.filter(x=>x.status===t.status);
+      const sorted=[...colTasks].sort((a,b)=>{
+        const at=a.time?t2m(a.time):9999;
+        const bt=b.time?t2m(b.time):9999;
+        return at-bt;
+      });
+      const newOrder=sorted.findIndex(x=>x.id===t.id);
+      return newOrder>=0?{...t,manualOrder:newOrder}:t;
+    });
+    setTasks(final);
+    await db.from("tasks").upsert(changed.map(t=>{const f=final.find(x=>x.id===t.id)||t;return t2db(f,board.id);}));
+  };
+
+  const snoozeAllOverdue=async()=>{
+    const today=todayStr();
+    const overdueTasks=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0);
+    if(!overdueTasks.length)return;
+    const updated=overdueTasks.map(t=>({...t,dueDate:today}));
+    setTasks(ts=>ts.map(t=>{const u=updated.find(x=>x.id===t.id);return u||t;}));
+    await db.from("tasks").upsert(updated.map(t=>t2db(t,board.id)));
   };
 
   const cleanSort=async()=>{
@@ -2097,7 +2115,7 @@ function MainApp({user,board,onBack,onSignOut}){
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
   const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,show_hourly_cal:s.showHourlyCalendar||false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2116,7 +2134,8 @@ function MainApp({user,board,onBack,onSignOut}){
     const u={...m,status:colId};
     setTasks(ts=>ts.map(t=>t.id===draggingId?u:t));
     setDraggingId(null);
-    await db.from("tasks").upsert(t2db(u,board.id));
+    const{error}=await db.from("tasks").upsert(t2db(u,board.id));
+    if(error){console.error("handleDropCol error",error);setTasks(ts=>ts.map(t=>t.id===u.id?m:t));}
   };
 
   const childBucketIds=useMemo(()=>activeTab==="all"?[]:buckets.filter(b=>b.parentId===activeTab).map(b=>b.id),[activeTab,buckets]);
@@ -2130,7 +2149,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"day",icon:"▦",label:"Cal"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
+  const VIEWS=[{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
@@ -2149,8 +2168,7 @@ function MainApp({user,board,onBack,onSignOut}){
     showBucketColor:settings.showBucketColor!==false,
     showCardBg:settings.showCardBg!==false,
     showDuration:settings.showDuration!==false,
-    showFrequency:settings.showFrequency!==false,
-    showHourlyCalendar:!!settings.showHourlyCalendar
+    showFrequency:settings.showFrequency!==false
   };
   return(
     <ThemeCtx.Provider value={theme}>
@@ -2189,7 +2207,11 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       )}
 
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} showHourlyCalendar={settings.showHourlyCalendar} onOpenModal={()=>setShowQuickAdd(true)}/>}
+      {viewMode==="cal"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+        <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
+        <HourlyCalendar tasks={vis} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} nm={null}/>
+      </div>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
@@ -2239,7 +2261,7 @@ function MainApp({user,board,onBack,onSignOut}){
       )}
       {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onShowLog={()=>setShowLog(true)}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
