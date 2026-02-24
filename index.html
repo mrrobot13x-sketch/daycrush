@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v1.23</title>
+<title>DayCrush v1.24</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -48,13 +48,13 @@ const SURL='https://hnfvtllodmgsipyuwzsx.supabase.co';
 const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuZnZ0bGxvZG1nc2lweXV3enN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MjgwNzEsImV4cCI6MjA4NzMwNDA3MX0.4YzxxQK9PPPo1qGs9mEb6JhE5Ic6Y3_Lt9CGYtCCZEU';
 const db=supabase.createClient(SURL,SKEY);
 const LIME="#CAFF4C",BORDER="#2a2a2a",TEXT="#e8e8e8",MUTED="#555",CARD_BG="#1c1c1e",COL_BG="#111",BLUE="#1d9bf0";
-const COLS=[{id:"inprogress",label:"IN PROGRESS",accent:"#0A84FF"},{id:"do",label:"DO",accent:LIME},{id:"list",label:"LIST",accent:"#888"}];
+const COLS=[{id:"inprogress",label:"IN PROGRESS",accent:"#0A84FF"},{id:"nextup",label:"NEXT UP",accent:"#5E5CE6"},{id:"do",label:"TO DO",accent:LIME},{id:"list",label:"LIST",accent:"#888"}];
 const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0A"},{id:"high",label:"High",emoji:"",color:"#FF453A",dot:"#FF453A"},{id:"normal",label:"Normal",emoji:"",color:MUTED,dot:null},{id:"low",label:"Low",emoji:"",color:"#1d9bf0",dot:"#1d9bf0"}];
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false};
+const DEF_SETTINGS={hideNotDueYet:false,hideLowPriority:false,hideEmptyDo:false,defaultView:'day',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.23</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v1.24</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -525,7 +525,7 @@ function ActionMgr({actions,onSave,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog}){
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -536,7 +536,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
     </div>
   );
   const sec=label=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>{label}</div>);
-  const VIEWS=[{id:"day",label:"Calendar ▦"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"dur",label:"Duration ◷"}];
+  const VIEWS=[{id:"day",label:"Calendar ▦"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"}];
   return(
     <Modal onClose={onClose} maxWidth={360}>
       <div style={{padding:"18px 18px 4px"}}>
@@ -565,11 +565,19 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
         {row("Collapse overdue tasks","hideCalOverdue","Calendar view")}
         {row("Show Tomorrow","showTomorrow","Calendar view")}
         {row("Hide Time Frames","hideTimeFrames","Calendar view")}
+        {sec("🃏 Card Display")}
+        {row("Show Action tag","showActionTag","Default: hidden")}
+        {row("Show bucket accent color","showBucketColor","Left/right color bars")}
+        {row("Show card background color","showCardBg","Bucket bg tint")}
+        {row("Show duration","showDuration","⏱ min badge")}
+        {row("Show frequency","showFrequency","Repeat label")}
         <div style={{paddingTop:14,display:"flex",flexDirection:"column",gap:7}}>
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onBuckets();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📦 Manage Buckets</button>}
           {(userRole==="owner"||userRole==="editor")&&<button onClick={()=>{onActions();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>⚡ Manage Actions</button>}
           <button onClick={()=>{onMembers();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>👥 Board Members</button>
           <button onClick={()=>{onShowLog();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📋 Activity Log</button>
+          <button onClick={()=>onExportTasks()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Task List</button>
+          <button onClick={()=>onExportLog()} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:TEXT,fontSize:12,fontFamily:"inherit",width:"100%"}}>📤 Export Activity Log</button>
           <button onClick={()=>{onCleanSort();onClose();}} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:8,border:"1px solid #4ECDC444",background:"#0a1a1a",cursor:"pointer",color:"#4ECDC4",fontSize:12,fontFamily:"inherit",width:"100%",fontWeight:700,letterSpacing:.5}}>⟳ CLEANSORT<span style={{fontSize:10,fontWeight:400,color:MUTED,marginLeft:4}}>recurring→LIST · no freq→DO</span></button>
         </div>
       </div>
@@ -838,7 +846,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const dl=task.dueDate?dueLabel(task.dueDate,task.who,task.timeOfDay):null;
   const hideTodayFlag=hideToday||(hideTime&&task.time&&daysDiff(task.dueDate||"9999-01-01")===0);
   const dlShow=dl&&!(hideTodayFlag&&dl.color===LIME&&task.dueDate&&daysDiff(task.dueDate)===0)?dl:null;
-  const {cardBg:tcBg,border:tcBorder,text:tcText,muted:tcMuted}=useTheme();
+  const {cardBg:tcBg,border:tcBorder,text:tcText,muted:tcMuted,showActionTag:sAT,showBucketColor:sBktCol,showCardBg:sCardBg,showDuration:sDur,showFrequency:sFreq}=useTheme();
   const bkt=buckets.find(b=>b.id===task.bucketId);
   const fl=freqLabel(task.frequency);
   const pi=PMAP[task.priority||"normal"];
@@ -853,7 +861,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const bktMainColor=bkt?.mainColor||null;
   const bktBgColor=bkt?.bgColor||null;
   const celebrating_=celebrating;
-  const bgActual=bktBgColor?bktBgColor+"22":null;
+  const bgActual=(bktBgColor&&sCardBg)?bktBgColor+"22":null;
   const isLight=bktBgColor?hexLum(bktBgColor)<0.3:false;
   const cardBg=celebrating_?"#0d2a0d":isDone?"#0a120a":hasCover?"transparent":bgActual?bgActual:tcBg;
   const cardBorder=celebrating_?"#30D158":isDone?"#30D15833":!celebrating_&&!isDone&&task.priority==="high"?"#FF453A88":dlShow?.color==="#FF453A"?"#FF453A44":bktMainColor?bktMainColor+"33":tcBorder;
@@ -867,8 +875,8 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
       {!celebrating_&&isDone&&<div style={{position:"absolute",inset:0,background:"#0a120a",borderRadius:10,zIndex:0}}/>}
       {!celebrating_&&!isDone&&hasCover&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.72)",borderRadius:10}}/>}
       {!celebrating_&&!isDone&&!hasCover&&<div style={{position:"absolute",inset:0,background:cardBg,borderRadius:10,zIndex:0}}/>}
-      {!celebrating_&&!isDone&&bktMainColor&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"0 2px 2px 0",opacity:.9,zIndex:1}}/>}
-      {!celebrating_&&!isDone&&bktMainColor&&<div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"2px 0 0 2px",opacity:.9,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&sBktCol&&bktMainColor&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"0 2px 2px 0",opacity:.9,zIndex:1}}/>}
+      {!celebrating_&&!isDone&&sBktCol&&bktMainColor&&<div style={{position:"absolute",right:0,top:0,bottom:0,width:4,background:bktMainColor,borderRadius:"2px 0 0 2px",opacity:.9,zIndex:1}}/>}
       {!celebrating_&&!isDone&&!bktMainColor&&accent&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:pi.dot,borderRadius:"0 3px 3px 0",opacity:.85,zIndex:1}}/>}
       {!celebrating_&&!isDone&&!bktMainColor&&!accent&&dlShow&&<div style={{position:"absolute",left:0,top:4,bottom:4,width:3,background:dlShow.color,borderRadius:"0 3px 3px 0",opacity:.45,zIndex:1}}/>}
       {(celebrating_||isDone)&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:"#30D158",borderRadius:"0 3px 3px 0",zIndex:1,opacity:isDone?.5:1}}/>}
@@ -900,18 +908,18 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
           return showMeta?(
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:4}}>
               <div style={{display:"flex",alignItems:"center",gap:6,flex:1,flexWrap:"wrap"}}>
-                {task.action&&<span style={{fontSize:9,color:"#fff",fontWeight:700,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:"1px solid #fff",background:"#000"}}>{task.action.toUpperCase()}</span>}
+                {sAT&&task.action&&<span style={{fontSize:9,color:"#fff",fontWeight:700,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:"1px solid #fff",background:"#000"}}>{task.action.toUpperCase()}</span>}
                 {!showBucket&&bkt&&<span style={{fontSize:9,color:bktMainColor||"#555",fontWeight:600,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:`1px solid ${bktMainColor?bktMainColor+"33":"#2a2a2a"}`}}>{bkt.emoji} {bkt.label}</span>}
                 {isOneOff&&<span style={{fontSize:9,color:"#383838",fontWeight:600,letterSpacing:.4,textTransform:"uppercase",borderRadius:3,padding:"1px 4px",border:"1px solid #2a2a2a"}}>one-off</span>}
                 {task.time&&!hideTime&&<span style={{fontSize:10,color:"#888",fontWeight:500}}>{fmtTime(task.time)}</span>}
                 {dlShow&&<span style={{fontSize:11,color:dlShow.color,fontWeight:dlShow.weight}}>{dlShow.text}</span>}
-                {task.duration&&<span style={{fontSize:10,color:"#666"}}>⏱{task.duration}m</span>}
+                {sDur&&task.duration&&<span style={{fontSize:10,color:"#666"}}>⏱{task.duration}m</span>}
                 {hasEvent&&daysUntil!==null&&(isCountup
                   ?<span style={{fontSize:11,color:"#0A84FF",fontWeight:700}}>📅 {Math.abs(daysUntil)} days since</span>
                   :<span style={{fontSize:11,color:daysUntil<=3?"#FF9F0A":LIME,fontWeight:700}}>⏳ {daysUntil===0?"Today!":daysUntil===1?"Tomorrow":`${daysUntil} days away`}</span>
                 )}
               </div>
-              {fl&&<span style={{fontSize:10,color:isWord?"#4ECDC4":"#333",flexShrink:0,marginLeft:8,fontWeight:isWord?600:400}}>{fl}</span>}
+              {sFreq&&fl&&<span style={{fontSize:10,color:isWord?"#4ECDC4":"#333",flexShrink:0,marginLeft:8,fontWeight:isWord?600:400}}>{fl}</span>}
             </div>
           ):null;
         })()}
@@ -1171,15 +1179,28 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
   const fmtMin=m=>{if(!m||m===0)return"0m";if(m<60)return`${m}m`;return`${Math.floor(m/60)}h ${m%60?("0"+m%60).slice(-2)+"m":""}`.trim();};
   const durColor=m=>m<=5?"#30D158":m<=15?LIME:m<=30?"#FF9F0A":"#FF453A";
   const [adding,setAdding]=useState(false);
-  const [groupBy,setGroupBy]=useState("duration");
+  const [groupBy,setGroupBy]=useState("status");
   const [durActionF,setDurActionF]=useState("all");
   const [durBucketF,setDurBucketF]=useState("all");
   const [durPriorityF,setDurPriorityF]=useState("all");
+  const [durDateF,setDurDateF]=useState("all");
+  const [durTimeF,setDurTimeF]=useState("all");
+  const [durFreqF,setDurFreqF]=useState("all");
+  const [durStatusF,setDurStatusF]=useState("all");
   const selStyle={padding:"5px 9px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
-  // All tasks due today or overdue
-  const relevant=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<=0);
+  // All tasks (no date gate - List view shows everything)
+  const relevant=tasks;
   // Apply internal filters
   const filtered=relevant.filter(t=>{
+    if(durDateF==="today"&&(!t.dueDate||daysDiff(t.dueDate)!==0))return false;
+    if(durDateF==="overdue"&&(!t.dueDate||daysDiff(t.dueDate)>=0))return false;
+    if(durDateF==="upcoming"&&(!t.dueDate||daysDiff(t.dueDate)<=0))return false;
+    if(durDateF==="nodate"&&t.dueDate)return false;
+    if(durTimeF==="timed"&&!t.time)return false;
+    if(durTimeF==="untimed"&&t.time)return false;
+    if(durFreqF==="recurring"&&!(t.frequency&&t.frequency.trim()))return false;
+    if(durFreqF==="oneoff"&&(t.frequency&&t.frequency.trim()))return false;
+    if(durStatusF!=="all"&&t.status!==durStatusF)return false;
     if(durActionF!=="all"&&(t.action||"")!==durActionF)return false;
     if(durBucketF!=="all"&&(t.bucketId||"")!==durBucketF)return false;
     if(durPriorityF!=="all"&&(t.priority||"normal")!==durPriorityF)return false;
@@ -1228,6 +1249,43 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
         return{key:`pri-${k}`,label:`${pi.emoji||""} ${pi.label}`.trim(),color:pi.dot||"#555",items,extra:null};
       });
     }
+    if(groupBy==="status"){
+      const sMap={};
+      filtered.forEach(t=>{const k=t.status||"list";if(!sMap[k])sMap[k]=[];sMap[k].push(t);});
+      return COLS.filter(col=>sMap[col.id]).map(col=>{
+        const items=[...sMap[col.id]].sort((a,b)=>parseInt(a.duration||0)-parseInt(b.duration||0));
+        return{key:`st-${col.id}`,label:col.label,color:col.accent,items,extra:null};
+      });
+    }
+    if(groupBy==="date"){
+      const today=todayStr();
+      const groups2=[];
+      const overdue=filtered.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+      const todayT=filtered.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0);
+      const upcoming=filtered.filter(t=>t.dueDate&&daysDiff(t.dueDate)>0).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+      const nodate=filtered.filter(t=>!t.dueDate);
+      if(overdue.length)groups2.push({key:"overdue",label:"Overdue",color:"#FF453A",items:overdue,extra:null});
+      if(todayT.length)groups2.push({key:"today",label:"Today",color:LIME,items:todayT,extra:null});
+      if(upcoming.length)groups2.push({key:"upcoming",label:"Upcoming",color:"#FF9F0A",items:upcoming,extra:null});
+      if(nodate.length)groups2.push({key:"nodate",label:"No Date",color:"#444",items:nodate,extra:null});
+      return groups2;
+    }
+    if(groupBy==="time"){
+      const timed=filtered.filter(t=>t.time).sort((a,b)=>t2m(a.time)-t2m(b.time));
+      const untimed=filtered.filter(t=>!t.time);
+      const grps=[];
+      if(timed.length)grps.push({key:"timed",label:"Timed",color:"#4ECDC4",items:timed,extra:null});
+      if(untimed.length)grps.push({key:"untimed",label:"No Time",color:"#444",items:untimed,extra:null});
+      return grps;
+    }
+    if(groupBy==="frequency"){
+      const rec=filtered.filter(t=>t.frequency&&t.frequency.trim()).sort((a,b)=>a.frequency.localeCompare(b.frequency));
+      const oneoff=filtered.filter(t=>!t.frequency||!t.frequency.trim());
+      const grps=[];
+      if(rec.length)grps.push({key:"rec",label:"Recurring",color:"#4ECDC4",items:rec,extra:null});
+      if(oneoff.length)grps.push({key:"oneoff",label:"One-off",color:"#888",items:oneoff,extra:null});
+      return grps;
+    }
     return[];
   };
   const groups=buildGroups();
@@ -1240,10 +1298,35 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
       <div style={{padding:"10px 16px",borderBottom:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
         <span style={{fontSize:11,color:MUTED,fontWeight:600,letterSpacing:.4}}>GROUP</span>
         <select value={groupBy} onChange={e=>setGroupBy(e.target.value)} style={selStyle}>
+          <option value="status">Status</option>
+          <option value="date">Date</option>
+          <option value="time">Time</option>
+          <option value="frequency">Frequency</option>
           <option value="duration">Duration</option>
           <option value="action">Action</option>
           <option value="bucket">Bucket</option>
           <option value="priority">Priority</option>
+        </select>
+        <select value={durDateF} onChange={e=>setDurDateF(e.target.value)} style={selStyle}>
+          <option value="all">All Dates</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Today</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="nodate">No Date</option>
+        </select>
+        <select value={durTimeF} onChange={e=>setDurTimeF(e.target.value)} style={selStyle}>
+          <option value="all">All Times</option>
+          <option value="timed">Has Time</option>
+          <option value="untimed">No Time</option>
+        </select>
+        <select value={durFreqF} onChange={e=>setDurFreqF(e.target.value)} style={selStyle}>
+          <option value="all">All Freq</option>
+          <option value="recurring">Recurring</option>
+          <option value="oneoff">One-off</option>
+        </select>
+        <select value={durStatusF} onChange={e=>setDurStatusF(e.target.value)} style={selStyle}>
+          <option value="all">All Status</option>
+          {COLS.map(col=><option key={col.id} value={col.id}>{col.label}</option>)}
         </select>
         {usedActions.length>0&&<select value={durActionF} onChange={e=>setDurActionF(e.target.value)} style={selStyle}>
           <option value="all">All Actions</option>
@@ -1272,7 +1355,7 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
             {g.items.map(t=><TaskCard key={t.id} task={t} buckets={buckets} onEdit={onEdit} onDelete={onDelete} onCheck={onCheck} showBucket={sb} listMode={true} readOnly={readOnly} celebrating={celebratingIds.has(t.id)} onDragStart={()=>{}} onDragOver={()=>{}} onDrop={()=>{}} isDragging={false}/>)}
           </div>
         ))}
-        {groupBy==="duration"&&noDur.length>0&&(
+        {(groupBy==="duration")&&noDur.length>0&&(
           <div style={{marginBottom:16}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
               <div style={{width:6,height:6,borderRadius:"50%",background:"#2a2a2a",flexShrink:0}}/>
@@ -1566,7 +1649,7 @@ function MainApp({user,board,onBack,onSignOut}){
       ]);
       setTasks((tr.data||[]).map(dbToTask));
       setBuckets((br.data||[]).map(b=>({id:b.id,emoji:b.emoji,label:b.label,mainColor:b.color||null,bgColor:b.bg_color||null,parentId:b.parent_id||null})));
-      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
+      if(sr.data){const s={hideNotDueYet:sr.data.hide_not_due_yet,hideLowPriority:sr.data.hide_low_priority,hideEmptyDo:sr.data.hide_empty_do,defaultView:sr.data.default_view||"day",hideCalOverdue:sr.data.hide_cal_overdue||false,dayStartTime:sr.data.day_start_time||'00:30',showTomorrow:sr.data.show_tomorrow||false,lightMode:sr.data.light_mode||false,hideTimeFrames:sr.data.hide_time_frames||false,showActionTag:sr.data.show_action_tag||false,showBucketColor:sr.data.show_bucket_color!==false,showCardBg:sr.data.show_card_bg!==false,showDuration:sr.data.show_duration!==false,showFrequency:sr.data.show_frequency!==false};setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}}
       setLoading(false);
       sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
@@ -1692,7 +1775,7 @@ function MainApp({user,board,onBack,onSignOut}){
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -1725,7 +1808,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"day",icon:"▦",label:"Cal"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"dur",icon:"◷",label:"Dur"}];
+  const VIEWS=[{id:"day",icon:"▦",label:"Cal"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
@@ -1739,7 +1822,12 @@ function MainApp({user,board,onBack,onSignOut}){
     text:lm?"#1a1a1a":"#e8e8e8",
     muted:lm?"#777":"#555",
     inp:lm?"#f0f0f5":"#1a1a1a",
-    lm
+    lm,
+    showActionTag:!!settings.showActionTag,
+    showBucketColor:settings.showBucketColor!==false,
+    showCardBg:settings.showCardBg!==false,
+    showDuration:settings.showDuration!==false,
+    showFrequency:settings.showFrequency!==false
   };
   return(
     <ThemeCtx.Provider value={theme}>
@@ -1770,9 +1858,9 @@ function MainApp({user,board,onBack,onSignOut}){
           ))}
         </div>
       )}
-      {viewMode==="list"&&<ListView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
+
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames}/>}
-      {viewMode==="dur"&&<DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
+      {viewMode==="list"&&<DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>}
 
       <div style={{borderTop:`1px solid ${theme.border}`,background:theme.navBg,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 4px",height:44}}>
@@ -1819,7 +1907,17 @@ function MainApp({user,board,onBack,onSignOut}){
       )}
       {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onShowLog={()=>setShowLog(true)}/>}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onShowLog={()=>setShowLog(true)}
+        onExportTasks={()=>{
+          const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
+          const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
+        }}
+        onExportLog={()=>{
+          const log=JSON.parse(localStorage.getItem(logKey)||"[]");
+          const lines=log.map(e=>`[${new Date(e.at).toLocaleString()}] ${e.type.toUpperCase()}: ${e.title||"?"}${e.col?" → "+e.col:""}`);
+          const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-log-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
+        }}
+      />}
       {showLog&&<ActivityLog logKey={logKey} onClose={()=>setShowLog(false)}/>}
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
