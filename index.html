@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.24</title>
+<title>DayCrush v2.25</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -122,7 +122,7 @@ const dueLabel=(dd,who,tod)=>{
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
 const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null,notify_mins:t.notifyMins!=null?t.notifyMins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null});
 const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',keepLink:'',notifyMins:null,boardId:bid});
 const bInp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"};
 const bSel={...{width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"},cursor:"pointer"};
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.24</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.25</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -1063,7 +1063,7 @@ function ListView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,cele
   );
 }
 
-function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb,onAddTask,hideTimeFrames}){
+function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb,onAddTask,hideTimeFrames,dayFilter,activeTab,allBuckets}){
   const now=etNow();
   const curNm=now.getHours()*60+now.getMinutes();
   const {showBucketColor:hcSBC,showDuration:hcSD,showFrequency:hcSF,showActionTag:hcSAT,showCardBg:hcSCB}=useTheme();
@@ -1074,17 +1074,34 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
     {label:"Night",emoji:"🌆",color:"#5E5CE6",start:17*60,end:21*60+59},
     {label:"4th Meal",emoji:"🌙",color:"#0A84FF",start:22*60,end:25*60+59},
   ];
-  // Determine all tasks relevant to calendar view
-  const overdue=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0);
-  const todayAll=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0);
-  const todayTimed=[...todayAll.filter(t=>t.time)].sort((a,b)=>t2m(a.time)-t2m(b.time));
-  const todayUntimed=todayAll.filter(t=>!t.time);
+  // Compute target date from dayFilter
+  const _targetDate=(()=>{
+    if(!dayFilter||dayFilter==="today"||dayFilter==="all"||dayFilter==="overdue")return todayStr();
+    if(dayFilter==="tomorrow"){const d=new Date(todayStr()+"T00:00:00");d.setDate(d.getDate()+1);return d.toISOString().split("T")[0];}
+    if(dayFilter.startsWith("wd:")){
+      const tgt=parseInt(dayFilter.slice(3));
+      const now2=etNow();const dow=now2.getDay();
+      const diff=(tgt-dow+7)%7||7;
+      const d=new Date(now2);d.setDate(now2.getDate()+diff);
+      const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,"0"),dy=String(d.getDate()).padStart(2,"0");
+      return `${y}-${mo}-${dy}`;
+    }
+    return todayStr();
+  })();
+  const _isToday=_targetDate===todayStr();
+  // Bucket filter
+  const _bktFilter=t=>{if(!activeTab||activeTab==="all")return true;const childIds=(allBuckets||buckets).filter(b=>b.parentId===activeTab).map(b=>b.id);return t.bucketId===activeTab||childIds.includes(t.bucketId);};
+  const _allForTarget=tasks.filter(t=>t.dueDate===_targetDate&&_bktFilter(t));
+  const overdue=_isToday?tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0&&_bktFilter(t)):[];
+  const todayAll=_allForTarget;
+  const todayTimed=[..._allForTarget.filter(t=>t.time)].sort((a,b)=>t2m(a.time)-t2m(b.time));
+  const todayUntimed=_allForTarget.filter(t=>!t.time);
   const [ovExpanded,setOvExpanded]=useState(false);
   const [untimedOpen,setUntimedOpen]=useState(true);
-  // Dynamic start hour: after noon & morning done → start at 12, else 6
+  // Dynamic start hour: today after noon & morning done → 12; future days always 6
   const morningTimed=todayTimed.filter(t=>t2m(t.time)>=6*60&&t2m(t.time)<12*60);
   const morningDone=morningTimed.length===0||morningTimed.every(t=>t.done);
-  const START_H=(curNm>=12*60&&morningDone)?12:6;
+  const START_H=(_isToday&&curNm>=12*60&&morningDone)?12:6;
   const END_H=24;
   const HOURS=Array.from({length:END_H-START_H},(_,i)=>START_H+i);
   const totalH=HOURS.length*HOUR_H;
@@ -1111,7 +1128,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
   });
   const bktColor=t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return bkt?.mainColor||null;};
   const hLabel=h=>h===0||h===24?"12 AM":h===12?"12 PM":h>12?`${h-12} PM`:`${h} AM`;
-  const tdLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  const tdLbl=new Date(_targetDate+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   // Click hour to create task
   const clickHour=h=>{
     if(readOnly||!onAddTask)return;
@@ -2507,7 +2524,7 @@ function MainApp({user,board,onBack,onSignOut}){
 
       {viewMode==="cal"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
-        <HourlyCalendar tasks={vis} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames}/>
+        <HourlyCalendar tasks={tasks} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} dayFilter={dayFilter} activeTab={activeTab} allBuckets={buckets}/>
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="taba"&&<TabataView/>}
