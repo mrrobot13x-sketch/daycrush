@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.23</title>
+<title>DayCrush v2.24</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -121,9 +121,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',keepLink:r.keep_link||''});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',keepLink:'',boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null,notify_mins:t.notifyMins!=null?t.notifyMins:null});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',keepLink:'',notifyMins:null,boardId:bid});
 const bInp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"};
 const bSel={...{width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"},cursor:"pointer"};
 const freqIsWord=f=>f&&isNaN(Number(f.trim()))&&!isOverdueToken(f);
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.23</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.24</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -728,7 +728,7 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
 }
 
 function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
-  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",keepLink:task.keepLink||""});
+  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -891,6 +891,25 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
             <div style={{fontSize:10,color:MUTED,marginBottom:6}}>When the task is due today, shows a live countdown on the card</div>
             <input type="date" value={f.eventDate||""} onChange={e=>set("eventDate",e.target.value)} disabled={readOnly} style={{...bInp,colorScheme:"dark",marginBottom:0}}/>
             {f.eventDate&&<div style={{fontSize:11,color:LIME,marginTop:4}}>⏳ {Math.max(0,Math.ceil((new Date(f.eventDate+"T00:00:00")-new Date())/(1000*60*60*24)))} days until event</div>}
+          </div>
+          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${BORDER}`}}>
+            <label style={bLbl}>🔔 Notifications</label>
+            <div style={{fontSize:10,color:MUTED,marginBottom:8}}>Browser push notification before this task is due. Task must have a time set.</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <select value={f.notifyMins!=null?String(f.notifyMins):""} onChange={e=>set("notifyMins",e.target.value===""?null:parseInt(e.target.value))} disabled={readOnly} style={{...bSel,marginBottom:0,flex:1}}>
+                <option value="">No notification</option>
+                <option value="0">At task time</option>
+                <option value="5">5 min before</option>
+                <option value="15">15 min before</option>
+                <option value="30">30 min before</option>
+                <option value="60">1 hour before</option>
+                <option value="120">2 hours before</option>
+                <option value="1440">1 day before</option>
+              </select>
+              {f.notifyMins!=null&&<button onClick={()=>{if(!("Notification" in window)){alert("Not supported");return;}Notification.requestPermission().then(p=>{if(p==="granted")new Notification("🔔 DayCrush",{body:"Test: "+(f.title||"Task")});else alert("Allow notifications in browser settings.");});}} style={{padding:"6px 12px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:LIME,cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>Test</button>}
+            </div>
+            {f.notifyMins!=null&&!f.time&&<div style={{fontSize:10,color:"#FF9F0A",marginTop:5}}>⚠ Add a time to this task for notifications to work.</div>}
+            {f.notifyMins!=null&&f.time&&<div style={{fontSize:10,color:"#30D158",marginTop:5}}>✓ Will notify {f.notifyMins===0?"at":""+f.notifyMins+"min before"} {fmtTime(f.time)}.</div>}
           </div>
         </MoreSection>
 
@@ -1176,13 +1195,14 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
                 const showBc=hcSBC&&bc;
                 const borderCol=longPast?"#FF453A88":passed?"#30D15844":upcoming?"#FF9F0A44":showBc?bc+"44":"#2a2a2a";
                 const bg=longPast?"#1a0505":passed?"#071500":upcoming?"#1a0d00":showBc?bc+"11":"#1c1c1e";
-                const titleCol=stateColor||(t.done?"#30D158":TEXT);
+                const isDone=t.done||celebratingIds.has(t.id);
+                const titleCol=isDone?"#30D158":stateColor||TEXT;
                 return(
                   <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left:`calc(${col*100/cols}%)`,width:`calc(${100/cols}% - 4px)`,boxSizing:"border-box",paddingRight:4}}>
                     <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative"}}>
                       {showBc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
                       <div style={{paddingLeft:showBc?6:0}}>
-                        <div style={{fontSize:11,fontWeight:700,color:titleCol,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap"}}>{t.title||"Untitled"}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:titleCol,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap",textDecoration:isDone?"line-through":"none",opacity:isDone?.7:1}}>{t.title||"Untitled"}</div>
                         {height>28&&<div style={{fontSize:9,color:stateColor?stateColor+"99":"#555",marginTop:2}}>
                           {fmtTime(t.time)}
                           {hcSD&&t.duration?` · ${t.duration}m`:""}
@@ -1190,8 +1210,8 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
                           {hcSF&&t.frequency?` · ${t.frequency}`:""}
                         </div>}
                       </div>
-                      {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${celebratingIds.has(t.id)?"#30D158":"#333"}`,background:celebratingIds.has(t.id)?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
-                        {celebratingIds.has(t.id)&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
+                      {!readOnly&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:3,border:`1.5px solid ${isDone?"#30D158":"#444"}`,background:isDone?"#30D158":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={e=>{e.stopPropagation();onCheck(t.id);}}>
+                        {isDone&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
                       </div>}
                     </div>
                   </div>
@@ -1919,6 +1939,61 @@ function SearchMdl({tasks,boards,allMode,onSelectTask,onClose}){
   );
 }
 
+function DayFilterDropdown({value,onChange}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef();
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  const now=etNow();
+  const todayDow=now.getDay();
+  const wdNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const wdOpts=[];
+  for(let i=0;i<7;i++){
+    const dow=(todayDow+i)%7;
+    const d=new Date(now);d.setDate(now.getDate()+i);
+    const dateStr=(d.getMonth()+1)+"/"+(d.getDate());
+    const lbl=i===0?`${wdNames[dow]} (Today)`:i===1?`${wdNames[dow]} (Tomorrow)`:wdNames[dow];
+    wdOpts.push({id:i===0?"today":i===1?"tomorrow":"wd:"+dow,label:`${lbl} · ${dateStr}`});
+  }
+  const OPTS=[
+    {id:"today",label:"Today"},
+    {id:"all",label:"All Dates"},
+    {id:"overdue",label:"Overdue Only"},
+    {id:"__sep__"},
+    ...wdOpts
+  ];
+  const active=OPTS.find(o=>o.id===value)||OPTS[0];
+  return(
+    <div ref={ref} style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{display:"flex",alignItems:"center",gap:7,padding:"5px 10px",borderRadius:8,border:`1px solid ${open?"#444":BORDER}`,background:"#111",cursor:"pointer",color:TEXT,fontFamily:"inherit",fontSize:12,minWidth:90,justifyContent:"space-between"}}>
+        <span style={{fontWeight:600,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{active.label||"Today"}</span>
+        <span style={{fontSize:9,color:MUTED,marginLeft:4}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:"#111",border:"1px solid #444",borderRadius:10,overflow:"hidden",zIndex:200,minWidth:180,boxShadow:"0 8px 32px rgba(0,0,0,.8)"}}>
+          {OPTS.map((opt,i)=>{
+            if(opt.id==="__sep__")return <div key="sep" style={{height:1,background:"#222",margin:"4px 0"}}/>;
+            const sel=opt.id===value;
+            return(
+              <button key={opt.id} onClick={()=>{onChange(opt.id);setOpen(false);}}
+                style={{display:"flex",alignItems:"center",width:"100%",padding:"9px 14px",background:sel?"#1a1a1a":"transparent",border:"none",cursor:"pointer",color:sel?LIME:TEXT,fontFamily:"inherit",fontSize:12,textAlign:"left",borderLeft:sel?`2px solid ${LIME}`:"2px solid transparent"}}
+                onMouseEnter={e=>{if(!sel)e.currentTarget.style.background="#1a1a1a";}}
+                onMouseLeave={e=>{if(!sel)e.currentTarget.style.background="transparent";}}>
+                <span style={{flex:1,fontWeight:sel?700:400}}>{opt.label}</span>
+                {sel&&<span style={{color:LIME,fontSize:11}}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BucketDropdown({tabs,activeTab,onSelect}){
   const [open,setOpen]=useState(false);
   const ref=useRef();
@@ -2083,13 +2158,31 @@ function MainApp({user,board,onBack,onSignOut}){
   const [showQuickAdd,setShowQuickAdd]=useState(false);
   const [showLog,setShowLog]=useState(false);
   const [showInbox,setShowInbox]=useState(false);
-  const [dayFilter,setDayFilter]=useState("all"); // all|today|tomorrow|overdue
+  const [dayFilter,setDayFilter]=useState("today");
   const [showSearch,setShowSearch]=useState(false);
   const [showDisplay,setShowDisplay]=useState(false);
   const [showStats,setShowStats]=useState(false);
   const logKey=`daycrush_log_${board.id}`;
   const getLog=()=>{try{return JSON.parse(localStorage.getItem(logKey)||"[]");}catch{return[];}};
   const subRef=useRef(null);
+  const _notifTimers=useRef({});
+  useEffect(()=>{
+    if(!("Notification" in window)||Notification.permission!=="granted")return;
+    Object.values(_notifTimers.current).forEach(clearTimeout);
+    _notifTimers.current={};
+    const now=new Date();
+    tasks.forEach(t=>{
+      if(t.notifyMins==null||!t.dueDate||!t.time)return;
+      const fireAt=new Date(t.dueDate+"T"+t.time+":00").getTime()-t.notifyMins*60000;
+      const delay=fireAt-now.getTime();
+      if(delay>0&&delay<172800000){
+        _notifTimers.current[t.id]=setTimeout(()=>{
+          try{new Notification("🔔 DayCrush",{body:t.title+(t.notifyMins?` in ${t.notifyMins}min`:""),tag:t.id});}catch{}
+        },delay);
+      }
+    });
+  },[tasks]);
+
   const appendLog=(entry,bcast=false)=>{
     try{const l=getLog();l.unshift({...entry,at:new Date().toISOString()});localStorage.setItem(logKey,JSON.stringify(l.slice(0,500)));}catch{}
     if(bcast&&subRef.current){try{subRef.current.send({type:"broadcast",event:"activity",payload:{...entry,userId:user.id,who:user.user_metadata?.full_name||user.email||"Someone",at:new Date().toISOString()}});}catch{}}
@@ -2346,13 +2439,14 @@ function MainApp({user,board,onBack,onSignOut}){
     if(dayFilter==="today"){const d=t.dueDate?daysDiff(t.dueDate):1;if(d>0||!t.dueDate)return false;}
     if(dayFilter==="tomorrow"){const d=t.dueDate?daysDiff(t.dueDate):999;if(d!==1)return false;}
     if(dayFilter==="overdue"){const d=t.dueDate?daysDiff(t.dueDate):0;if(d>=0)return false;}
+    if(dayFilter.startsWith("wd:")){const _wd=parseInt(dayFilter.slice(3));if(!t.dueDate||new Date(t.dueDate+"T00:00:00").getDay()!==_wd)return false;}
     return true;
   });
 
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"inbox",icon:"📥",label:"Inbox"}];
+  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
@@ -2382,18 +2476,12 @@ function MainApp({user,board,onBack,onSignOut}){
             <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:MUTED,fontSize:20,padding:"0 4px 0 0",lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>‹</button>
             <Logo size={22}/>
             <div>
-              <div onClick={()=>setViewMode("inbox")} style={{fontWeight:800,fontSize:13,letterSpacing:-.5,display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.opacity=.75} onMouseLeave={e=>e.currentTarget.style.opacity=1} title="Open Inbox"><span style={{fontSize:15}}>{board.emoji}</span>{board.name}<span style={{fontSize:9,color:MUTED,marginLeft:2}}>📥</span></div>
+              <div onClick={()=>setViewMode("inbox")} style={{fontWeight:800,fontSize:13,letterSpacing:-.5,display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.opacity=.75} onMouseLeave={e=>e.currentTarget.style.opacity=1} title="Open Inbox"><span style={{fontSize:15}}>{board.emoji}</span>{board.name}</div>
               {syncing&&<div style={{fontSize:8,color:"#30D158",letterSpacing:1,textTransform:"uppercase"}}>SYNCING…</div>}
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-            {/* TODAY filter dropdown */}
-            <select value={dayFilter} onChange={e=>setDayFilter(e.target.value)} style={{padding:"4px 8px",borderRadius:7,border:`1px solid ${dayFilter!=="all"?LIME+"66":BORDER}`,background:dayFilter!=="all"?"#0a1400":"#111",color:dayFilter!=="all"?LIME:MUTED,fontSize:11,fontFamily:"inherit",cursor:"pointer",outline:"none",fontWeight:dayFilter!=="all"?700:400,height:32}}>
-              <option value="all">All Dates</option>
-              <option value="today">Today + Overdue</option>
-              <option value="tomorrow">Tomorrow</option>
-              <option value="overdue">Overdue Only</option>
-            </select>
+            <DayFilterDropdown value={dayFilter} onChange={setDayFilter}/>
             {/* Bucket dropdown */}
             <BucketDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}/>
             {/* Stats pill */}
