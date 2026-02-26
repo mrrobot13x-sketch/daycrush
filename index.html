@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.26</title>
+<title>DayCrush v2.27</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -54,7 +54,7 @@ const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideEmptyDo:false,defaultView:'cal',dayStartTime:'00:30',lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
+const DEF_SETTINGS={hideEmptyDo:false,defaultView:'cal',dayStartTime:'00:30',hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -124,6 +124,20 @@ const dueLabel=(dd,who,tod)=>{
 const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
 const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null});
 const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',keepLink:'',notifyMins:null,boardId:bid});
+const taskDaysSinceDone=t=>{
+  if(!t.completionLog||!t.completionLog.length)return null;
+  const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
+  if(!last||!last.doneAt)return null;
+  const d=new Date(last.doneAt);
+  return Math.round((new Date()-d)/(1000*60*60*24));
+};
+const taskDiff=t=>{
+  const dsd=taskDaysSinceDone(t);
+  if(dsd===null)return null;
+  const freq=parseInt((t.frequency||"").trim());
+  if(isNaN(freq)||freq<=0)return null;
+  return dsd-freq;
+};
 const bInp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"};
 const bSel={...{width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"},cursor:"pointer"};
 const freqIsWord=f=>f&&isNaN(Number(f.trim()))&&!isOverdueToken(f);
@@ -153,7 +167,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.26</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.27</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -607,7 +621,7 @@ function DisplayMdl({settings,onChange,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata}){
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -618,7 +632,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
     </div>
   );
   const sec=label=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>{label}</div>);
-  const VIEWS=[{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"inbox",label:"Inbox 📥"}];
+  const VIEWS=[{id:"inbox",label:"Inbox ⊟"},{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"health",label:"Health ⬡"}];
   return(
     <Modal onClose={onClose} maxWidth={360}>
       <div style={{padding:"18px 18px 4px"}}>
@@ -626,7 +640,6 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
       </div>
       <div style={{padding:"0 18px",maxHeight:"70vh",overflowY:"auto"}}>
         {sec("🌍 Universal")}
-        {row("Light Mode","lightMode","This board only")}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${BORDER}`}}>
           <div style={{fontSize:13}}>Rollover</div>
           <select value={settings.dayStartTime||"00:30"} onChange={e=>onChange({...settings,dayStartTime:e.target.value})} style={selSt}>
@@ -649,6 +662,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
               <div style={{display:"flex",gap:6}}>{btn("📤 Tasks",()=>onExportTasks())}{btn("📤 Log",()=>onExportLog())}</div>
               <div style={{display:"flex",gap:6}}>{btn("⚡ Board Sort",()=>{onBoardSort();onClose();},"#5E5CE6")}{btn("⟳ Clean Sort",()=>{onCleanSort();onClose();},"#4ECDC4")}</div>
               <div style={{display:"flex",gap:6}}>{btn("💤 Snooze Overdue",()=>{onSnoozeOverdue();onClose();},"#FF9F0A")}{btn("◎ Tabata",()=>{onTabata&&onTabata();onClose();},"#5E5CE6")}</div>
+              <div style={{display:"flex",gap:6}}>{btn(syncing?"↻ Syncing…":"↻ Sync Now",()=>{onSync&&onSync();},"#4ECDC4")}</div>
             </>);
           })()}
         </div>
@@ -980,7 +994,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
             {(celebrating_||isDone)&&<span style={{color:"#000",fontSize:9,fontWeight:900,lineHeight:1}}>✓</span>}
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
-            {(()=>{const now2=etNow();const nm2=now2.getHours()*60+now2.getMinutes();const tm2=task.time?t2m(task.time):null;const isOvd=task.dueDate&&daysDiff(task.dueDate)<0;const longPastCard=(task.dueDate&&daysDiff(task.dueDate)===0&&tm2!==null&&tm2<=nm2&&(nm2-tm2)>120)||isOvd;const titleCol=(celebrating_||isDone)?"#30D158":longPastCard?"#FF453A":cardText||(task.priority==="low"?"#aaa":TEXT);return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
+            {(()=>{const titleCol=(celebrating_||isDone)?"#30D158":cardText||TEXT;return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
           </div>
           <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4}}>
             {celebrating_&&<span style={{fontSize:12,color:"#30D158",fontWeight:700}}>DONE! ✅</span>}
@@ -1286,13 +1300,10 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
   const toggleFrame=label=>setFrameOpen(s=>({...s,[label]:!s[label]}));
 
   const Row=({task})=>{
-    const passed=task.time&&t2m(task.time)<=nm;
-    const longPast=passed&&(nm-t2m(task.time))>120;
-    const soon=upcoming60(task);
     const isToday=task.dueDate&&daysDiff(task.dueDate)===0;
-    const timeColor=longPast?"#FF453A":passed?"#30D158":soon?"#FF9F0A":"#555";
-    const dotBg=longPast?"#FF453A":passed?"#30D158":task.dueDate&&daysDiff(task.dueDate)<0?"#FF453A":soon?"#FF9F0A22":"#2a2a2a";
-    const dotBorder=longPast?"#FF453A":passed?"#30D158":soon?"#FF9F0A":"#333";
+    const timeColor="#555";
+    const dotBg="#2a2a2a";
+    const dotBorder="#333";
     return(
       <div style={{display:"flex",alignItems:"flex-start",marginBottom:4}}>
         <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span onClick={e=>{e.stopPropagation();if(!readOnly){const nt=mkTask("do",boardId);nt.title="";nt.dueDate=todayStr();nt.time=task.time;onAddTask(nt);}}} style={{fontSize:10,color:timeColor,fontWeight:passed||soon?600:400,whiteSpace:"nowrap",cursor:readOnly?"default":"pointer"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
@@ -1861,6 +1872,77 @@ function InboxView({tasks,buckets,boardId,onAdd,onEdit,readOnly}){
   );
 }
 
+function HealthView({tasks,buckets,onEdit}){
+  const {text:hvTx,border:hvBo,cardBg:hvCard}=useTheme();
+  // Compute health for every task with a frequency
+  const rows=tasks
+    .filter(t=>t.frequency&&t.frequency.trim()&&!isNaN(parseInt(t.frequency.trim()))&&parseInt(t.frequency.trim())>0)
+    .map(t=>{
+      const diff=taskDiff(t);
+      const dsd=taskDaysSinceDone(t);
+      const dueDiff=t.dueDate?daysDiff(t.dueDate):0;
+      // Determine status
+      let status,color,bg;
+      if(dueDiff<0||(diff!==null&&diff>0)){
+        const overdueDays=diff!==null?diff:Math.abs(dueDiff);
+        status=`OVERDUE ${overdueDays}d`;color="#FF453A";bg="#1a0505";
+      } else if(dueDiff===0){
+        status="DUE";color="#FF9F0A";bg="#1a0d00";
+      } else {
+        status="GOOD";color="#30D158";bg="#071500";
+      }
+      return{t,status,color,bg,sortKey:status==="GOOD"?9999:(status==="DUE"?0:(-(parseInt(status.split(" ")[1])||0)))};
+    })
+    .sort((a,b)=>a.sortKey-b.sortKey);
+
+  // Include tasks without frequency too, always GOOD unless overdue by date
+  const allRows=[
+    ...rows,
+    ...tasks
+      .filter(t=>!t.frequency||!t.frequency.trim()||isNaN(parseInt(t.frequency.trim()))||parseInt(t.frequency.trim())<=0)
+      .map(t=>{
+        const dueDiff=t.dueDate?daysDiff(t.dueDate):0;
+        let status,color,bg;
+        if(dueDiff<0){status=`OVERDUE ${Math.abs(dueDiff)}d`;color="#FF453A";bg="#1a0505";}
+        else if(dueDiff===0){status="DUE";color="#FF9F0A";bg="#1a0d00";}
+        else{status="GOOD";color="#30D158";bg="#071500";}
+        return{t,status,color,bg,sortKey:status==="GOOD"?9999:(status==="DUE"?0:(-(parseInt(status.split(" ")[1])||0)))};
+      })
+      .sort((a,b)=>a.sortKey-b.sortKey)
+  ].sort((a,b)=>a.sortKey-b.sortKey);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+      <div style={{padding:"10px 16px 4px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+        <span style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:1,textTransform:"uppercase"}}>⬡ HEALTH · {allRows.length} tasks</span>
+        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"4px 16px 24px"}}>
+        <div style={{maxWidth:640,margin:"0 auto"}}>
+          {allRows.map(({t,status,color,bg})=>{
+            const bkt=buckets.find(b=>b.id===t.bucketId);
+            return(
+              <div key={t.id} onClick={()=>onEdit(t)}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,background:"#111",marginBottom:4,border:`1px solid #1e1e1e`,cursor:"pointer"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#333"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#1e1e1e"}>
+                {bkt&&<span style={{fontSize:13,flexShrink:0}}>{bkt.emoji}</span>}
+                <span style={{flex:1,fontSize:13,color:hvTx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||<span style={{color:MUTED,fontStyle:"italic"}}>Untitled</span>}</span>
+                {t.frequency&&<span style={{fontSize:10,color:MUTED,flexShrink:0,marginRight:4}}>every {t.frequency}d</span>}
+                <div style={{background:bg,border:`1px solid ${color}44`,borderRadius:6,padding:"3px 10px",flexShrink:0,minWidth:90,textAlign:"center"}}>
+                  <span style={{fontSize:11,fontWeight:700,color,letterSpacing:.3}}>{status}</span>
+                </div>
+              </div>
+            );
+          })}
+          {allRows.length===0&&<div style={{textAlign:"center",padding:"64px 0",color:MUTED,fontSize:14,fontStyle:"italic"}}><div style={{fontSize:32,marginBottom:12}}>⬡</div>No tasks to show</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityLog({logKey,onClose}){
   const log=JSON.parse(localStorage.getItem(logKey)||"[]");
   const icons={add:"➕",edit:"✏️",delete:"🗑",complete:"✓"};
@@ -2227,7 +2309,6 @@ function MainApp({user,board,onBack,onSignOut}){
           defaultView:lc.defaultView||sr.data.default_view||"cal",
           dayStartTime:lc.dayStartTime||sr.data.day_start_time||'00:30',
 
-          lightMode:lc.lightMode!==undefined?lc.lightMode:(sr.data.light_mode||false),
           hideTimeFrames:lc.hideTimeFrames!==undefined?lc.hideTimeFrames:(sr.data.hide_time_frames||false),
           showActionTag:lc.showActionTag!==undefined?lc.showActionTag:(sr.data.show_action_tag||false),
           showBucketColor:lc.showBucketColor!==undefined?lc.showBucketColor:(sr.data.show_bucket_color!==false),
@@ -2235,7 +2316,7 @@ function MainApp({user,board,onBack,onSignOut}){
           showDuration:lc.showDuration!==undefined?lc.showDuration:(sr.data.show_duration!==false),
           showFrequency:lc.showFrequency!==undefined?lc.showFrequency:(sr.data.show_frequency!==false)
         };
-        setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);
+        setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));
         if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
       }
       setLoading(false);
@@ -2421,8 +2502,8 @@ function MainApp({user,board,onBack,onSignOut}){
   };
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2467,21 +2548,13 @@ function MainApp({user,board,onBack,onSignOut}){
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"}];
+  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
-  const lm=settings.lightMode;
   const theme={
-    bg:lm?"#f5f5f7":"#000",
-    navBg:lm?"#ffffff":"#000",
-    cardBg:lm?"#ffffff":"#1c1c1e",
-    col:lm?"#eaebef":"#111",
-    border:lm?"#d0d5dd":"#2a2a2a",
-    text:lm?"#1a1a1a":"#e8e8e8",
-    muted:lm?"#777":"#555",
-    inp:lm?"#f0f0f5":"#1a1a1a",
-    lm,
+    bg:"#000",navBg:"#000",cardBg:"#1c1c1e",col:"#111",border:"#2a2a2a",
+    text:"#e8e8e8",muted:"#555",inp:"#1a1a1a",lm:false,
     showActionTag:!!settings.showActionTag,
     showBucketColor:settings.showBucketColor!==false,
     showCardBg:settings.showCardBg!==false,
@@ -2532,6 +2605,7 @@ function MainApp({user,board,onBack,onSignOut}){
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="taba"&&<TabataView/>}
+      {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing}/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
@@ -2556,10 +2630,7 @@ function MainApp({user,board,onBack,onSignOut}){
               <span style={{fontSize:15,lineHeight:1}}>⌕</span>
               <span style={{fontSize:7,letterSpacing:.3}}>Search</span>
             </button>
-            <button onClick={forceRefresh} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:syncing?LIME:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
-              <span style={{fontSize:15,lineHeight:1,display:"inline-block",animation:syncing?"spin .8s linear infinite":"none"}}>↻</span>
-              <span style={{fontSize:7,letterSpacing:.3}}>Sync</span>
-            </button>
+
             <button onClick={()=>setShowDisplay(true)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,background:"none",border:"none",cursor:"pointer",padding:"4px 8px",borderRadius:6,color:MUTED,minWidth:38}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>
               <span style={{fontSize:15,lineHeight:1}}>⊙</span>
               <span style={{fontSize:7,letterSpacing:.3}}>Show</span>
@@ -2582,7 +2653,7 @@ function MainApp({user,board,onBack,onSignOut}){
       )}
       {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onShowLog={()=>setShowLog(true)}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
