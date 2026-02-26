@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.27</title>
+<title>DayCrush v2.28</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -131,12 +131,18 @@ const taskDaysSinceDone=t=>{
   const d=new Date(last.doneAt);
   return Math.round((new Date()-d)/(1000*60*60*24));
 };
-const taskDiff=t=>{
+const taskLastCompleted=t=>{
+  if(!t.completionLog||!t.completionLog.length)return null;
+  const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
+  return last?last.doneAt.split("T")[0]:null;
+};
+const taskDeltaTally=t=>{
+  // negative = X days overdue, 0 = due today, positive = X days until due
   const dsd=taskDaysSinceDone(t);
   if(dsd===null)return null;
   const freq=parseInt((t.frequency||"").trim());
   if(isNaN(freq)||freq<=0)return null;
-  return dsd-freq;
+  return freq-dsd; // positive = still good, negative = overdue
 };
 const bInp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"};
 const bSel={...{width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"},cursor:"pointer"};
@@ -167,7 +173,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.27</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.28</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -380,22 +386,37 @@ function MembersModal({board,userRole,onClose,currentUser}){
 function CompLog({log,onChange}){
   const sorted=[...(log||[])].sort((a,b)=>b.doneAt.localeCompare(a.doneAt));
   const ago=d=>{const v=Math.abs(daysDiff(d.split("T")[0]));return v===0?"today":v===1?"yesterday":`${v}d ago`;};
+  const [showMore,setShowMore]=useState(false);
+  const LIMIT=3;
+  const visible=showMore?sorted:sorted.slice(0,LIMIT);
+  const hidden=sorted.length-LIMIT;
   return(
     <div>
       <label style={{...bLbl,color:"#30D158"}}>Completion Log{sorted.length>0&&<span style={{color:MUTED,fontWeight:400,textTransform:"none",letterSpacing:0}}> · {sorted.length}</span>}</label>
       {sorted.length===0&&<div style={{fontSize:11,color:MUTED,marginBottom:12,fontStyle:"italic"}}>No completions yet.</div>}
       {sorted.length>0&&(
         <div style={{borderRadius:8,border:"1px solid #30D15833",overflow:"hidden",marginBottom:14,background:"#0a140a"}}>
-          {sorted.map((e,i)=>(
-            <div key={e.id} style={{padding:"8px 10px",borderBottom:i<sorted.length-1?"1px solid #0d1e0d":"none",display:"flex",gap:8}}>
-              <span style={{fontSize:12,color:"#30D158",fontWeight:700,flexShrink:0,paddingTop:1}}>✓</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",gap:8,marginBottom:3}}><span style={{fontSize:11,color:"#30D158",fontWeight:600}}>{fmtDateFull(e.doneAt.split("T")[0])}</span><span style={{fontSize:10,color:MUTED}}>{ago(e.doneAt)}</span></div>
-                <input value={e.note||""} onChange={ev=>{const u=[...(log||[])];const idx=u.findIndex(x=>x.id===e.id);if(idx>=0)u[idx]={...u[idx],note:ev.target.value};onChange(u);}} placeholder="Add a note…" style={{width:"100%",padding:"3px 0",background:"transparent",border:"none",borderBottom:"1px solid #1a2a1a",color:MUTED,fontSize:11,fontFamily:"inherit",outline:"none"}}/>
+          {visible.map((e,i)=>{
+            const isCollapsed=!showMore&&i>=LIMIT;
+            return(
+              <div key={e.id} style={{padding:"8px 10px",borderBottom:i<visible.length-1?"1px solid #0d1e0d":"none",display:"flex",gap:8}}>
+                <span style={{fontSize:12,color:"#30D158",fontWeight:700,flexShrink:0,paddingTop:1}}>✓</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:8,marginBottom:showMore?3:0}}>
+                    <span style={{fontSize:11,color:"#30D158",fontWeight:600}}>{fmtDateFull(e.doneAt.split("T")[0])}</span>
+                    <span style={{fontSize:10,color:MUTED}}>{ago(e.doneAt)}</span>
+                  </div>
+                  {showMore&&<input value={e.note||""} onChange={ev=>{const u=[...(log||[])];const idx=u.findIndex(x=>x.id===e.id);if(idx>=0)u[idx]={...u[idx],note:ev.target.value};onChange(u);}} placeholder="Add a note…" style={{width:"100%",padding:"3px 0",background:"transparent",border:"none",borderBottom:"1px solid #1a2a1a",color:MUTED,fontSize:11,fontFamily:"inherit",outline:"none"}}/>}
+                </div>
+                <button onClick={()=>onChange((log||[]).filter(x=>x.id!==e.id))} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:12}} onMouseEnter={x=>x.currentTarget.style.color="#FF453A"} onMouseLeave={x=>x.currentTarget.style.color="#333"}>✕</button>
               </div>
-              <button onClick={()=>onChange((log||[]).filter(x=>x.id!==e.id))} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:12}} onMouseEnter={x=>x.currentTarget.style.color="#FF453A"} onMouseLeave={x=>x.currentTarget.style.color="#333"}>✕</button>
-            </div>
-          ))}
+            );
+          })}
+          {hidden>0&&(
+            <button onClick={()=>setShowMore(o=>!o)} style={{width:"100%",padding:"7px",background:"transparent",border:"none",borderTop:"1px solid #0d1e0d",cursor:"pointer",fontSize:11,color:"#30D15888",fontFamily:"inherit"}}>
+              {showMore?`▲ Show less`:`▾ ${hidden} more…`}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -749,7 +770,7 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
   const taskCol=[...tasks.filter(t=>t.status===f.status)].sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0));
   const idx=taskCol.findIndex(t=>t.id===f.id);
   const canU=idx>0,canD=idx<taskCol.length-1;
-  const markDone=()=>{const e={id:genId(),doneAt:new Date().toISOString(),note:""};const nd=nextDue(f.frequency)||f.dueDate;setF(x=>({...x,completionLog:[...x.completionLog,e],dueDate:nd,status:"list"}));};
+  const markDone=()=>{const e={id:genId(),doneAt:new Date().toISOString(),note:""};const nd=nextDue(f.frequency)||f.dueDate;const updated={...f,completionLog:[...f.completionLog,e],dueDate:nd,status:"list"};onSave(updated);onClose();};
   const dl=f.dueDate?dueLabel(f.dueDate,f.who,f.timeOfDay):null;
   const ld=f.completionLog.length>0?[...f.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0]:null;
   const bkt=buckets.find(b=>b.id===f.bucketId);
@@ -954,6 +975,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
   const {cardBg:tcBg,border:tcBorder,text:tcText,muted:tcMuted,showActionTag:sAT,showBucketColor:sBktCol,showCardBg:sCardBg,showDuration:sDur,showFrequency:sFreq}=useTheme();
   const bkt=buckets.find(b=>b.id===task.bucketId);
   const fl=freqLabel(task.frequency);
+  const _deltaTally=task.frequency&&!isNaN(parseInt((task.frequency||"").trim()))?taskDeltaTally(task):null;
   const pi=PMAP[task.priority||"normal"];
   const accent=task.priority==="crush"||task.priority==="high";
   const isWord=freqIsWord(task.frequency);
@@ -1024,6 +1046,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
                 )}
               </div>
               {sFreq&&fl&&<span style={{fontSize:10,color:isWord?"#4ECDC4":"#333",flexShrink:0,marginLeft:8,fontWeight:isWord?600:400}}>{fl}</span>}
+              {_deltaTally!==null&&<span style={{fontSize:10,fontWeight:700,color:_deltaTally<0?"#FF453A":_deltaTally===0?"#FF9F0A":"#30D158",flexShrink:0,marginLeft:4}}>Δ{_deltaTally>0?"+":""}{_deltaTally}</span>}
             </div>
           ):null;
         })()}
@@ -1171,8 +1194,8 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
         </div>
       )}
       {/* Hourly grid */}
-      <div style={{flex:1,overflowY:"auto",padding:"8px 16px 0"}}>
-        <div style={{maxWidth:640,margin:"0 auto",width:"100%"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"8px 12px 0"}}>
+        <div style={{width:"100%"}}>
           <div style={{position:"relative",marginLeft:52}}>
             {/* Time-frame bracket bars (left side, when enabled) */}
             {TF_FRAMES.map(fr=>{
@@ -1306,7 +1329,7 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
     const dotBorder="#333";
     return(
       <div style={{display:"flex",alignItems:"flex-start",marginBottom:4}}>
-        <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span onClick={e=>{e.stopPropagation();if(!readOnly){const nt=mkTask("do",boardId);nt.title="";nt.dueDate=todayStr();nt.time=task.time;onAddTask(nt);}}} style={{fontSize:10,color:timeColor,fontWeight:passed||soon?600:400,whiteSpace:"nowrap",cursor:readOnly?"default":"pointer"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
+        <div style={{width:62,flexShrink:0,paddingTop:10,textAlign:"right",paddingRight:10,whiteSpace:"nowrap"}}>{task.time?<span onClick={e=>{e.stopPropagation();if(!readOnly){const nt=mkTask("do",boardId);nt.title="";nt.dueDate=todayStr();nt.time=task.time;onAddTask(nt);}}} style={{fontSize:10,color:timeColor,fontWeight:400,whiteSpace:"nowrap",cursor:readOnly?"default":"pointer"}}>{fmtTime(task.time)}</span>:<span style={{fontSize:9,color:"#2a2a2a"}}>—</span>}</div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:12,flexShrink:0,width:16}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:dotBg,border:`1.5px solid ${dotBorder}`}}/>
           <div style={{width:1,flex:1,background:"#1a1a1a",minHeight:16,marginTop:2}}/>
@@ -1564,7 +1587,7 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
   const fmtMin=m=>{if(!m||m===0)return"0m";if(m<60)return`${m}m`;return`${Math.floor(m/60)}h ${m%60?("0"+m%60).slice(-2)+"m":""}`.trim();};
   const durColor=m=>m<=5?"#30D158":m<=15?LIME:m<=30?"#FF9F0A":"#FF453A";
   const [adding,setAdding]=useState(false);
-  const [groupBy,setGroupBy]=useState("status");
+  const [groupBy,setGroupBy]=useState("time");
   const [durActionF,setDurActionF]=useState("all");
   const [durBucketF,setDurBucketF]=useState("all");
   const [durPriorityF,setDurPriorityF]=useState("all");
@@ -1878,20 +1901,21 @@ function HealthView({tasks,buckets,onEdit}){
   const rows=tasks
     .filter(t=>t.frequency&&t.frequency.trim()&&!isNaN(parseInt(t.frequency.trim()))&&parseInt(t.frequency.trim())>0)
     .map(t=>{
-      const diff=taskDiff(t);
-      const dsd=taskDaysSinceDone(t);
+      const dt=taskDeltaTally(t);
       const dueDiff=t.dueDate?daysDiff(t.dueDate):0;
-      // Determine status
-      let status,color,bg;
-      if(dueDiff<0||(diff!==null&&diff>0)){
-        const overdueDays=diff!==null?diff:Math.abs(dueDiff);
-        status=`OVERDUE ${overdueDays}d`;color="#FF453A";bg="#1a0505";
-      } else if(dueDiff===0){
-        status="DUE";color="#FF9F0A";bg="#1a0d00";
+      let status,color,bg,sortKey;
+      if(dt!==null){
+        // Use deltaTally: negative=overdue, 0=due, positive=good
+        if(dt<0){status=`OVERDUE ${Math.abs(dt)}d`;color="#FF453A";bg="#1a0505";sortKey=dt;}
+        else if(dt===0){status="DUE";color="#FF9F0A";bg="#1a0d00";sortKey=0;}
+        else{status=`GOOD +${dt}d`;color="#30D158";bg="#071500";sortKey=dt;}
       } else {
-        status="GOOD";color="#30D158";bg="#071500";
+        // No frequency: use date
+        if(dueDiff<0){status=`OVERDUE ${Math.abs(dueDiff)}d`;color="#FF453A";bg="#1a0505";sortKey=dueDiff;}
+        else if(dueDiff===0){status="DUE";color="#FF9F0A";bg="#1a0d00";sortKey=0;}
+        else{status=`GOOD +${dueDiff}d`;color="#30D158";bg="#071500";sortKey=dueDiff;}
       }
-      return{t,status,color,bg,sortKey:status==="GOOD"?9999:(status==="DUE"?0:(-(parseInt(status.split(" ")[1])||0)))};
+      return{t,status,color,bg,sortKey};
     })
     .sort((a,b)=>a.sortKey-b.sortKey);
 
@@ -1902,11 +1926,11 @@ function HealthView({tasks,buckets,onEdit}){
       .filter(t=>!t.frequency||!t.frequency.trim()||isNaN(parseInt(t.frequency.trim()))||parseInt(t.frequency.trim())<=0)
       .map(t=>{
         const dueDiff=t.dueDate?daysDiff(t.dueDate):0;
-        let status,color,bg;
-        if(dueDiff<0){status=`OVERDUE ${Math.abs(dueDiff)}d`;color="#FF453A";bg="#1a0505";}
-        else if(dueDiff===0){status="DUE";color="#FF9F0A";bg="#1a0d00";}
-        else{status="GOOD";color="#30D158";bg="#071500";}
-        return{t,status,color,bg,sortKey:status==="GOOD"?9999:(status==="DUE"?0:(-(parseInt(status.split(" ")[1])||0)))};
+        let status,color,bg,sortKey;
+        if(dueDiff<0){status=`OVERDUE ${Math.abs(dueDiff)}d`;color="#FF453A";bg="#1a0505";sortKey=dueDiff;}
+        else if(dueDiff===0){status="DUE";color="#FF9F0A";bg="#1a0d00";sortKey=0;}
+        else{status=`GOOD +${dueDiff}d`;color="#30D158";bg="#071500";sortKey=dueDiff;}
+        return{t,status,color,bg,sortKey};
       })
       .sort((a,b)=>a.sortKey-b.sortKey)
   ].sort((a,b)=>a.sortKey-b.sortKey);
@@ -1927,9 +1951,7 @@ function HealthView({tasks,buckets,onEdit}){
                 style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,background:"#111",marginBottom:4,border:`1px solid #1e1e1e`,cursor:"pointer"}}
                 onMouseEnter={e=>e.currentTarget.style.borderColor="#333"}
                 onMouseLeave={e=>e.currentTarget.style.borderColor="#1e1e1e"}>
-                {bkt&&<span style={{fontSize:13,flexShrink:0}}>{bkt.emoji}</span>}
                 <span style={{flex:1,fontSize:13,color:hvTx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||<span style={{color:MUTED,fontStyle:"italic"}}>Untitled</span>}</span>
-                {t.frequency&&<span style={{fontSize:10,color:MUTED,flexShrink:0,marginRight:4}}>every {t.frequency}d</span>}
                 <div style={{background:bg,border:`1px solid ${color}44`,borderRadius:6,padding:"3px 10px",flexShrink:0,minWidth:90,textAlign:"center"}}>
                   <span style={{fontSize:11,fontWeight:700,color,letterSpacing:.3}}>{status}</span>
                 </div>
@@ -2053,16 +2075,15 @@ function DayFilterDropdown({value,onChange}){
     const dow=(todayDow+i)%7;
     const d=new Date(now);d.setDate(now.getDate()+i);
     const dateStr=(d.getMonth()+1)+"/"+(d.getDate());
-    const lbl=i===0?`${wdNames[dow]} (Today)`:i===1?`${wdNames[dow]} (Tomorrow)`:wdNames[dow];
-    wdOpts.push({id:i===0?"today":i===1?"tomorrow":"wd:"+dow,label:`${lbl} · ${dateStr}`});
+    const prefix=i===0?"TODAY":i===1?"TOMORROW":wdNames[dow].toUpperCase();
+    wdOpts.push({id:i===0?"today":i===1?"tomorrow":"wd:"+dow,label:`${prefix} · ${dateStr}`});
   }
   const OPTS=[
-    {id:"today",label:"Today"},
+    ...wdOpts,
+    {id:"__sep__"},
     {id:"todaytomorrow",label:"Today + Tomorrow"},
     {id:"all",label:"All Dates"},
     {id:"overdue",label:"Overdue Only"},
-    {id:"__sep__"},
-    ...wdOpts
   ];
   const active=OPTS.find(o=>o.id===value)||OPTS[0];
   return(
