@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.25</title>
+<title>DayCrush v2.26</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -54,7 +54,7 @@ const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const DEF_SETTINGS={hideNotDueYet:true,hideLowPriority:false,hideEmptyDo:false,defaultView:'cal',hideCalOverdue:false,dayStartTime:'00:30',showTomorrow:false,lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
+const DEF_SETTINGS={hideEmptyDo:false,defaultView:'cal',dayStartTime:'00:30',lightMode:false,hideTimeFrames:false,showActionTag:false,showBucketColor:true,showCardBg:true,showDuration:true,showFrequency:true};
 // Eastern time with configurable day-start rollover
 const etNow=()=>{
   const now=new Date();
@@ -153,7 +153,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.25</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.26</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -591,17 +591,13 @@ function DisplayMdl({settings,onChange,onClose}){
     <Modal onClose={onClose} maxWidth={320}>
       <div style={{padding:"18px 18px 0"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>Show</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
-        {sec("TASKS")}
-        {rowInv("SHOW not due yet","hideNotDueYet")}
-        {rowInv("SHOW low priority","hideLowPriority")}
         {sec("CARDS")}
         {row("SHOW action tag","showActionTag")}
         {row("SHOW bucket color","showBucketColor")}
         {row("SHOW card background","showCardBg")}
         {row("SHOW duration","showDuration")}
         {row("SHOW frequency","showFrequency")}
-        {sec("CALENDAR")}
-        {row("SHOW tomorrow","showTomorrow")}
+        {sec("TIMELINE VIEW")}
         {rowInv("SHOW time frames","hideTimeFrames")}
       </div>
       <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:12}}>
@@ -1076,7 +1072,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
   ];
   // Compute target date from dayFilter
   const _targetDate=(()=>{
-    if(!dayFilter||dayFilter==="today"||dayFilter==="all"||dayFilter==="overdue")return todayStr();
+    if(!dayFilter||dayFilter==="today"||dayFilter==="todaytomorrow"||dayFilter==="all"||dayFilter==="overdue")return todayStr();
     if(dayFilter==="tomorrow"){const d=new Date(todayStr()+"T00:00:00");d.setDate(d.getDate()+1);return d.toISOString().split("T")[0];}
     if(dayFilter.startsWith("wd:")){
       const tgt=parseInt(dayFilter.slice(3));
@@ -1165,7 +1161,7 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
         <div style={{maxWidth:640,margin:"0 auto",width:"100%"}}>
           <div style={{position:"relative",marginLeft:52}}>
             {/* Time-frame bracket bars (left side, when enabled) */}
-            {!hideTimeFrames&&TF_FRAMES.map(fr=>{
+            {TF_FRAMES.map(fr=>{
               const fStart=Math.max(fr.start,START_H*60),fEnd=Math.min(fr.end,END_H*60);
               if(fStart>=fEnd)return null;
               const top=(fStart-START_H*60)/60*HOUR_H;
@@ -1175,16 +1171,24 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
               );
             })}
             {/* Hour lines */}
-            {HOURS.map((h,i)=>(
+            {HOURS.map((h,i)=>{
+              const hm=h*60;
+              const fr=TF_FRAMES.find(f=>hm>=f.start&&hm<f.end);
+              const isActiveFr=fr&&curNm>=fr.start&&curNm<fr.end&&_isToday;
+              const isPastFr=fr&&curNm>=fr.end&&_isToday;
+              const hrCol=isActiveFr?fr.color:isPastFr?fr.color+"66":fr?"#333":"#444";
+              const hrWeight=isActiveFr?700:400;
+              return(
               <div key={h} style={{position:"absolute",top:i*HOUR_H,left:-52,right:0,display:"flex",alignItems:"center"}}>
-                <span onClick={()=>clickHour(h)} style={{fontSize:10,color:"#555",width:46,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1,cursor:readOnly?"default":"pointer",whiteSpace:"nowrap"}}
+                <span onClick={()=>clickHour(h)} style={{fontSize:10,color:hrCol,fontWeight:hrWeight,width:46,textAlign:"right",paddingRight:6,flexShrink:0,lineHeight:1,cursor:readOnly?"default":"pointer",whiteSpace:"nowrap",transition:"color .3s"}}
                   onMouseEnter={e=>{if(!readOnly)e.currentTarget.style.color=LIME;}}
-                  onMouseLeave={e=>{e.currentTarget.style.color="#555";}}>
+                  onMouseLeave={e=>{e.currentTarget.style.color=hrCol;}}>
                   {hLabel(h)}
                 </span>
                 <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
               </div>
-            ))}
+              );
+            })}
             {/* Half-hour dashes */}
             {HOURS.slice(0,-1).map((h,i)=>(
               <div key={`half-${h}`} style={{position:"absolute",top:i*HOUR_H+HOUR_H/2,left:0,right:0,height:1,background:"#111",pointerEvents:"none"}}/>
@@ -1204,23 +1208,18 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
                 const height=Math.max(dur/60*HOUR_H,MIN_H);
                 const bc=bktColor(t);
                 const bkt=buckets.find(b=>b.id===t.bucketId);
-                const passed=sm<=curNm;
-                const longPast=passed&&(curNm-sm)>120;
-                const upcoming=!passed&&(sm-curNm)<=60;
-                // Status colors: red=2h+ past, green=passed (0-2h), orange=within 60min, default
-                const stateColor=longPast?"#FF453A":passed?"#30D158":upcoming?"#FF9F0A":null;
                 const showBc=hcSBC&&bc;
-                const borderCol=longPast?"#FF453A88":passed?"#30D15844":upcoming?"#FF9F0A44":showBc?bc+"44":"#2a2a2a";
-                const bg=longPast?"#1a0505":passed?"#071500":upcoming?"#1a0d00":showBc?bc+"11":"#1c1c1e";
+                const borderCol=showBc?bc+"55":"#2a2a2a";
+                const bg=showBc?bc+"0d":"#1c1c1e";
                 const isDone=t.done||celebratingIds.has(t.id);
-                const titleCol=isDone?"#30D158":stateColor||TEXT;
+                const titleCol=isDone?"#30D158":TEXT;
                 return(
                   <div key={t.id} onClick={()=>onEdit(t)} style={{position:"absolute",top,left:`calc(${col*100/cols}%)`,width:`calc(${100/cols}% - 4px)`,boxSizing:"border-box",paddingRight:4}}>
                     <div style={{height,background:bg,border:`1px solid ${borderCol}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",overflow:"hidden",position:"relative"}}>
                       {showBc&&<div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:bc,borderRadius:"0 2px 2px 0",opacity:.9}}/>}
                       <div style={{paddingLeft:showBc?6:0}}>
                         <div style={{fontSize:11,fontWeight:700,color:titleCol,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:height>36?"normal":"nowrap",textDecoration:isDone?"line-through":"none",opacity:isDone?.7:1}}>{t.title||"Untitled"}</div>
-                        {height>28&&<div style={{fontSize:9,color:stateColor?stateColor+"99":"#555",marginTop:2}}>
+                        {height>28&&<div style={{fontSize:9,color:"#555",marginTop:2}}>
                           {fmtTime(t.time)}
                           {hcSD&&t.duration?` · ${t.duration}m`:""}
                           {hcSBC&&bkt?` · ${bkt.emoji}`:""}
@@ -1977,6 +1976,7 @@ function DayFilterDropdown({value,onChange}){
   }
   const OPTS=[
     {id:"today",label:"Today"},
+    {id:"todaytomorrow",label:"Today + Tomorrow"},
     {id:"all",label:"All Dates"},
     {id:"overdue",label:"Overdue Only"},
     {id:"__sep__"},
@@ -2222,13 +2222,11 @@ function MainApp({user,board,onBack,onSignOut}){
         const dk=`dc_disp_${user.id}_${board.id}`;
         let lc={};try{lc=JSON.parse(localStorage.getItem(dk)||"{}");}catch{}
         const s={
-          hideNotDueYet:lc.hideNotDueYet!==undefined?lc.hideNotDueYet:(sr.data.hide_not_due_yet||false),
-          hideLowPriority:lc.hideLowPriority!==undefined?lc.hideLowPriority:(sr.data.hide_low_priority||false),
+
           hideEmptyDo:lc.hideEmptyDo!==undefined?lc.hideEmptyDo:(sr.data.hide_empty_do||false),
           defaultView:lc.defaultView||sr.data.default_view||"cal",
-          hideCalOverdue:lc.hideCalOverdue!==undefined?lc.hideCalOverdue:(sr.data.hide_cal_overdue||false),
           dayStartTime:lc.dayStartTime||sr.data.day_start_time||'00:30',
-          showTomorrow:lc.showTomorrow!==undefined?lc.showTomorrow:(sr.data.show_tomorrow||false),
+
           lightMode:lc.lightMode!==undefined?lc.lightMode:(sr.data.light_mode||false),
           hideTimeFrames:lc.hideTimeFrames!==undefined?lc.hideTimeFrames:(sr.data.hide_time_frames||false),
           showActionTag:lc.showActionTag!==undefined?lc.showActionTag:(sr.data.show_action_tag||false),
@@ -2424,7 +2422,7 @@ function MainApp({user,board,onBack,onSignOut}){
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
   const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));document.documentElement.classList.toggle('light',!!s.lightMode);try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_not_due_yet:s.hideNotDueYet,hide_low_priority:s.hideLowPriority,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",hide_cal_overdue:s.hideCalOverdue||false,day_start_time:s.dayStartTime||'00:30',show_tomorrow:s.showTomorrow||false,light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',light_mode:s.lightMode||false,hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2449,14 +2447,20 @@ function MainApp({user,board,onBack,onSignOut}){
 
   const childBucketIds=useMemo(()=>activeTab==="all"?[]:buckets.filter(b=>b.parentId===activeTab).map(b=>b.id),[activeTab,buckets]);
   const vis=tasks.filter(t=>{
+    // Bucket filter
     if(activeTab!=="all"&&t.bucketId!==activeTab&&!childBucketIds.includes(t.bucketId))return false;
-    if(settings.hideNotDueYet&&t.dueDate&&daysDiff(t.dueDate)>0)return false;
-    if(settings.hideLowPriority&&t.priority==="low")return false;
-    // dayFilter
-    if(dayFilter==="today"){const d=t.dueDate?daysDiff(t.dueDate):1;if(d>0||!t.dueDate)return false;}
-    if(dayFilter==="tomorrow"){const d=t.dueDate?daysDiff(t.dueDate):999;if(d!==1)return false;}
-    if(dayFilter==="overdue"){const d=t.dueDate?daysDiff(t.dueDate):0;if(d>=0)return false;}
-    if(dayFilter.startsWith("wd:")){const _wd=parseInt(dayFilter.slice(3));if(!t.dueDate||new Date(t.dueDate+"T00:00:00").getDay()!==_wd)return false;}
+    // Date filter — "all" shows everything, others restrict by date
+    if(dayFilter==="all")return true;
+    if(!t.dueDate){
+      // undated tasks: only show in "all" or "inbox"-like contexts
+      return false;
+    }
+    const d=daysDiff(t.dueDate);
+    if(dayFilter==="today")return d<=0; // today + overdue
+    if(dayFilter==="todaytomorrow")return d<=1; // today + overdue + tomorrow
+    if(dayFilter==="tomorrow")return d===1;
+    if(dayFilter==="overdue")return d<0;
+    if(dayFilter.startsWith("wd:")){const _wd=parseInt(dayFilter.slice(3));return new Date(t.dueDate+"T00:00:00").getDay()===_wd;}
     return true;
   });
 
@@ -2526,7 +2530,7 @@ function MainApp({user,board,onBack,onSignOut}){
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <HourlyCalendar tasks={tasks} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} dayFilter={dayFilter} activeTab={activeTab} allBuckets={buckets}/>
       </div>}
-      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideCalOverdue={settings.hideCalOverdue} showTomorrow={settings.showTomorrow} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
+      {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="taba"&&<TabataView/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
