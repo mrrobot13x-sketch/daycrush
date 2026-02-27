@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.30</title>
+<title>DayCrush v2.31</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -51,6 +51,7 @@ const LIME="#CAFF4C",BORDER="#2a2a2a",TEXT="#e8e8e8",MUTED="#555",CARD_BG="#1c1c
 const COLS=[{id:"inprogress",label:"IN PROGRESS",accent:"#0A84FF"},{id:"nextup",label:"NEXT UP",accent:"#5E5CE6"},{id:"do",label:"TO DO",accent:LIME},{id:"list",label:"LIST",accent:"#888"}];
 const PRIORITIES=[{id:"crush",label:"Crush",emoji:"",color:"#FF9F0A",dot:"#FF9F0A"},{id:"high",label:"High",emoji:"",color:"#FF453A",dot:"#FF453A"},{id:"normal",label:"Normal",emoji:"",color:MUTED,dot:null},{id:"low",label:"Low",emoji:"",color:"#1d9bf0",dot:"#1d9bf0"}];
 const PMAP=Object.fromEntries(PRIORITIES.map(p=>[p.id,p]));
+const GAMEDAY_OPTS=["","GAMEDAY","DAY BEFORE GD","2 DAYS BEFORE GD","3 DAYS BEFORE GD","4 DAYS BEFORE GD","5 DAYS BEFORE GD","6 DAYS BEFORE GD","7 DAYS BEFORE GD","DAY AFTER GD","2 DAYS AFTER GD","3 DAYS AFTER GD","4 DAYS AFTER GD","5 DAYS AFTER GD","6 DAYS AFTER GD","7 DAYS AFTER GD"];
 const DEFAULT_ACTIONS=[{id:"buy",emoji:"🛒",label:"Buy"},{id:"call",emoji:"📞",label:"Call"},{id:"email",emoji:"📧",label:"Email"},{id:"research",emoji:"🔍",label:"Research"},{id:"review",emoji:"👁",label:"Review"},{id:"schedule",emoji:"📅",label:"Schedule"},{id:"watch",emoji:"👀",label:"Watch"},{id:"read",emoji:"📖",label:"Read"},{id:"fix",emoji:"🔧",label:"Fix"},{id:"build",emoji:"🏗",label:"Build"},{id:"plan",emoji:"📋",label:"Plan"},{id:"pay",emoji:"💳",label:"Pay"}];
 const WDN=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const WDL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -93,6 +94,9 @@ const parseFreq=f=>{
   // "every N" = Nth of month (1-31)
   const evM=s.match(/^every\s+(\d+)$/);if(evM){const d=parseInt(evM[1]);if(d>=1&&d<=31)return{type:"month_day",day:d,label:`${d}${d===1?"st":d===2?"nd":d===3?"rd":"th"} of month`};}
   const wd=WDN.indexOf(s);if(wd>=0)return{type:"weekday",day:wd,label:`every ${WDL[wd]}`};
+  // Annual date: MM-DD e.g. "03-10" = March 10 every year
+  const annM=s.match(/^(\d{1,2})-(\d{1,2})$/);
+  if(annM){const mo=parseInt(annM[1]),dy=parseInt(annM[2]);if(mo>=1&&mo<=12&&dy>=1&&dy<=31){const mnames=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return{type:"annual",month:mo,day:dy,label:`${mnames[mo-1]} ${dy} yearly`};}}
   const n=parseInt(s);if(!isNaN(n)&&n>0)return{type:"days",n,label:`every ${n}d`};
   return{type:null};
 };
@@ -106,6 +110,13 @@ const nextDue=f=>{
   if(p.type==="weekday"){d.setDate(d.getDate()+1);while(d.getDay()!==p.day)d.setDate(d.getDate()+1);return d.toISOString().split("T")[0];}
   if(p.type==="weekdays"){d.setDate(d.getDate()+1);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);return d.toISOString().split("T")[0];}
   if(p.type==="weekend"){d.setDate(d.getDate()+1);while(d.getDay()!==0&&d.getDay()!==6)d.setDate(d.getDate()+1);return d.toISOString().split("T")[0];}
+  if(p.type==="annual"){
+    const today=new Date(todayStr()+"T00:00:00");
+    let yr=today.getFullYear();
+    let candidate=new Date(yr,p.month-1,p.day);
+    if(candidate<=today)candidate=new Date(yr+1,p.month-1,p.day);
+    return candidate.toISOString().split("T")[0];
+  }
   if(p.type==="month_day"){
     const nd2=new Date(todayStr()+"T00:00:00");
     if(p.day===-1){let mo=nd2.getMonth(),yr=nd2.getFullYear();const lastDay=new Date(yr,mo+1,0).getDate();if(nd2.getDate()<lastDay){nd2.setDate(lastDay);}else{nd2.setMonth(mo+1);nd2.setDate(new Date(yr,mo+2,0).getDate());}return nd2.toISOString().split("T")[0];}
@@ -121,9 +132,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,keep_link:t.keepLink||null});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
 const taskDaysSinceDone=t=>{
   if(!t.completionLog||!t.completionLog.length)return null;
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
@@ -136,12 +147,21 @@ const taskLastCompleted=t=>{
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
   return last?last.doneAt.split("T")[0]:null;
 };
+const freqToNum=f=>{
+  if(!f)return null;const s=f.trim().toLowerCase();
+  if(s==="daily")return 1;if(s==="weekly")return 7;
+  if(s==="monthly")return 30;if(s==="yearly")return 365;
+  if(s==="weekday"||s==="weekdays")return 5;
+  if(s==="weekend"||s==="weekends")return 2;
+  const annM=s.match(/^(\d{1,2})-(\d{1,2})$/);if(annM)return 365;
+  const n=parseInt(s);return(!isNaN(n)&&n>0)?n:null;
+};
 const taskDeltaTally=t=>{
   // negative = X days overdue, 0 = due today, positive = X days until due
   const dsd=taskDaysSinceDone(t);
   if(dsd===null)return null;
-  const freq=parseInt((t.frequency||"").trim());
-  if(isNaN(freq)||freq<=0)return null;
+  const freq=freqToNum(t.frequency);
+  if(freq===null)return null;
   return freq-dsd; // positive = still good, negative = overdue
 };
 const bInp={width:"100%",padding:"9px 11px",borderRadius:8,border:`1px solid ${BORDER}`,fontSize:13,fontFamily:"inherit",color:TEXT,background:"#1a1a1a",marginBottom:12,boxSizing:"border-box",outline:"none"};
@@ -173,7 +193,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.30</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.31</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -491,31 +511,79 @@ function BucketMgr({buckets,onSave,onClose}){
     </div>
   );
   return(
-    <Modal onClose={onClose} maxWidth={400}>
-      <div style={{padding:"18px 18px 0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>📦 Buckets</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
-        <div style={{maxHeight:"55vh",overflowY:"auto",paddingRight:2}}>
-          {topLevel.sort((a,b)=>a.label.localeCompare(b.label)).map(b=>(
-            <div key={b.id}>
-              <BucketRow b={b} indent={false}/>
-              {list.filter(ch=>ch.parentId===b.id).sort((a,z)=>a.label.localeCompare(z.label)).map(ch=><BucketRow key={ch.id} b={ch} indent={true}/>)}
-            </div>
-          ))}
+    <div style={{position:"fixed",inset:0,background:"#000",zIndex:400,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"16px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:16}}>📦 Bucket Manager</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
+        {topLevel.sort((a,b)=>a.label.localeCompare(b.label)).map(b=>(
+          <div key={b.id}>
+            <BucketRow b={b} indent={false}/>
+            {list.filter(ch=>ch.parentId===b.id).sort((a,z)=>a.label.localeCompare(z.label)).map(ch=><BucketRow key={ch.id} b={ch} indent={true}/>)}
+          </div>
+        ))}
+        {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No buckets yet</div>}
+      </div>
+      <div style={{padding:"0 18px 12px",flexShrink:0,borderTop:`1px solid ${BORDER}`}}>
+        <div style={{display:"flex",gap:7,alignItems:"center",padding:"10px 0 12px"}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New bucket…" style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontWeight:800,fontSize:13,color:"#000",fontFamily:"inherit"}}>+</button>
         </div>
-        <div style={{display:"flex",gap:7,alignItems:"center",background:CARD_BG,borderRadius:8,padding:"7px 9px",marginTop:8,border:`1px solid ${BORDER}`}}>
-          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
-          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New bucket…" style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
-          <button onClick={add} style={{background:LIME,border:"none",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontWeight:800,fontSize:12,color:"#000",fontFamily:"inherit"}}>+</button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:9,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Cancel</button>
+          <button onClick={()=>onSave(list)} style={{flex:2,padding:"11px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:14}}>Save Buckets</button>
         </div>
       </div>
-      <div style={{padding:"12px 18px 18px",display:"flex",justifyContent:"flex-end",gap:8,borderTop:`1px solid ${BORDER}`,marginTop:12}}>
-        <button onClick={onClose} style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:MUTED,fontFamily:"inherit",fontSize:12}}>Cancel</button>
-        <button onClick={()=>onSave(list)} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Save</button>
-      </div>
-    </Modal>
+    </div>
   );
 }
 
+
+function BrandMgrView({brands,onSave,onClose}){
+  const [list,setList]=useState((brands||[]).map(a=>({...a}))),[nw,setNw]=useState({emoji:"🏷",label:""});
+  const [confirmDel,setConfirmDel]=useState(null);
+  const upd=(id,k,v)=>setList(ls=>ls.map(a=>a.id===id?{...a,[k]:v}:a));
+  const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"🏷",label:""});};
+  const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setConfirmDel(null);};
+  return(
+    <div style={{position:"fixed",inset:0,background:"#000",zIndex:400,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"16px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:16}}>🏷 Brand Manager</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
+        {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
+          <div key={a.id} style={{marginBottom:6}}>
+            <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
+              <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+              <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+              {confirmDel===a.id?(
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
+                  <button onClick={()=>setConfirmDel(null)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>No</button>
+                  <button onClick={()=>del(a.id)} style={{padding:"4px 9px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>Yes</button>
+                </div>
+              ):(
+                <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:15,padding:"2px 7px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No brands yet</div>}
+      </div>
+      <div style={{padding:"0 18px 12px",flexShrink:0,borderTop:`1px solid ${BORDER}`}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0 12px"}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New brand…" style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontWeight:800,fontSize:13,color:"#000",fontFamily:"inherit"}}>+</button>
+        </div>
+        <button onClick={()=>onSave(list)} style={{width:"100%",padding:"11px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:14}}>Save Brands</button>
+      </div>
+    </div>
+  );
+}
 
 function ActionMgr({actions,onSave,onClose}){
   const [list,setList]=useState(actions.map(a=>({...a}))),[nw,setNw]=useState({emoji:"⚡",label:""});
@@ -524,39 +592,43 @@ function ActionMgr({actions,onSave,onClose}){
   const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"⚡",label:""});};
   const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setConfirmDel(null);};
   return(
-    <Modal onClose={onClose} maxWidth={360}>
-      <div style={{padding:"18px 18px 0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><span style={{fontWeight:700,fontSize:15}}>⚡ Actions</span><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button></div>
-        <div style={{maxHeight:"55vh",overflowY:"auto",paddingRight:2}}>
-          {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
-            <div key={a.id} style={{marginBottom:4}}>
-              <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
-                <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
-                <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
-                {confirmDel===a.id?(
-                  <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                    <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
-                    <button onClick={()=>setConfirmDel(null)} style={{padding:"3px 7px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>No</button>
-                    <button onClick={()=>del(a.id)} style={{padding:"3px 7px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:700}}>Yes</button>
-                  </div>
-                ):(
-                  <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 6px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
-                )}
-              </div>
+    <div style={{position:"fixed",inset:0,background:"#000",zIndex:400,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"16px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:16}}>⚡ Action Manager</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
+        {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
+          <div key={a.id} style={{marginBottom:6}}>
+            <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
+              <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+              <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+              {confirmDel===a.id?(
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
+                  <button onClick={()=>setConfirmDel(null)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>No</button>
+                  <button onClick={()=>del(a.id)} style={{padding:"4px 9px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>Yes</button>
+                </div>
+              ):(
+                <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:15,padding:"2px 7px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
+              )}
             </div>
-          ))}
+          </div>
+        ))}
+        {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No actions yet</div>}
+      </div>
+      <div style={{padding:"0 18px 12px",flexShrink:0,borderTop:`1px solid ${BORDER}`}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0 12px"}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New action…" style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontWeight:800,fontSize:13,color:"#000",fontFamily:"inherit"}}>+</button>
         </div>
-        <div style={{display:"flex",gap:7,alignItems:"center",background:CARD_BG,borderRadius:8,padding:"7px 9px",marginTop:8,border:`1px solid ${BORDER}`}}>
-          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
-          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New action…" style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
-          <button onClick={add} style={{background:LIME,border:"none",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontWeight:800,fontSize:12,color:"#000",fontFamily:"inherit"}}>+</button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:9,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Cancel</button>
+          <button onClick={()=>onSave(list)} style={{flex:2,padding:"11px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:14}}>Save Actions</button>
         </div>
       </div>
-      <div style={{padding:"12px 18px 18px",display:"flex",justifyContent:"flex-end",gap:8,borderTop:`1px solid ${BORDER}`,marginTop:12}}>
-        <button onClick={onClose} style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:MUTED,fontFamily:"inherit",fontSize:12}}>Cancel</button>
-        <button onClick={()=>onSave(list)} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Save</button>
-      </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -642,7 +714,7 @@ function DisplayMdl({settings,onChange,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -678,7 +750,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onClose,bo
           {(()=>{
             const btn=(label,onClick,col)=>(<button onClick={onClick} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"9px 8px",borderRadius:8,border:`1px solid ${col?col+"44":BORDER}`,background:col?"#0a0a0a":CARD_BG,cursor:"pointer",color:col||TEXT,fontSize:11,fontFamily:"inherit",fontWeight:col?700:400}}>{label}</button>);
             return(<>
-              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}</div>}
+              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}{btn("🏷 Brands",()=>{onBrands&&onBrands();onClose();})}</div>}
               <div style={{display:"flex",gap:6}}>{btn("👥 Members",()=>{onMembers();onClose();})}{btn("📋 Log",()=>{onShowLog();onClose();})}</div>
               <div style={{display:"flex",gap:6}}>{btn("📤 Tasks",()=>onExportTasks())}{btn("📤 Log",()=>onExportLog())}</div>
               <div style={{display:"flex",gap:6}}>{btn("⚡ Board Sort",()=>{onBoardSort();onClose();},"#5E5CE6")}{btn("⟳ Clean Sort",()=>{onCleanSort();onClose();},"#4ECDC4")}</div>
@@ -758,8 +830,8 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
   );
 }
 
-function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
-  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
+function EditMdl({task,tasks,buckets,actions,brands,onSave,onClose,onDelete,readOnly}){
+  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",brand:task.brand||"",gameday:task.gameday||"",subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -807,16 +879,16 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
           {f.dueDate&&<button onClick={()=>{const d=new Date(f.dueDate+"T00:00:00");d.setDate(d.getDate()+1);set("dueDate",d.toISOString().split("T")[0]);}} style={{padding:"10px 14px",borderRadius:9,border:"1px solid #FF9F0A44",background:"#1a0e00",color:"#FF9F0A",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,flexShrink:0}} title="Snooze 1 day">💤 Snooze</button>}
         </div>}
 
-        {/* ── Scorecard (only for tasks with numeric frequency) ── */}
+        {/* ── Scorecard: always shown ── */}
         {(()=>{
-          const freq=parseInt((f.frequency||"").trim());
-          const hasFreq=!isNaN(freq)&&freq>0;
-          if(!hasFreq)return null;
+          const freqNum=freqToNum(f.frequency);
           const dsd=taskDaysSinceDone(f);
           const dt=taskDeltaTally(f);
           const lc=taskLastCompleted(f);
-          const cell=(label,val,col)=>(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px",borderRight:"1px solid #1a1a1a"}}>
+          const fp2=parseFreq(f.frequency);
+          const freqDisp=freqNum!==null?(fp2.type==="annual"?"Annual":fp2.type==="weekdays"?"5/wk":fp2.type==="weekend"?"2/wk":String(freqNum)):"—";
+          const cell=(label,val,col,flex)=>(
+            <div style={{flex:flex||1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px",borderRight:"1px solid #1a1a1a"}}>
               <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:MUTED,textTransform:"uppercase"}}>{label}</div>
               <div style={{fontSize:18,fontWeight:800,color:col||TEXT,lineHeight:1}}>{val}</div>
             </div>
@@ -824,7 +896,7 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
           const dtCol=dt===null?MUTED:dt<0?"#FF453A":dt===0?"#FF9F0A":"#30D158";
           return(
             <div style={{display:"flex",borderRadius:8,border:"1px solid #222",overflow:"hidden",marginBottom:14,background:"#0c0c0c"}}>
-              {cell("FREQ",freq,MUTED)}
+              {cell("FREQ",freqDisp,MUTED)}
               {cell("DAYS AGO",dsd!==null?dsd:"—",MUTED)}
               {cell("ΔTALLY",dt!==null?(dt>0?"+"+dt:dt):"—",dtCol)}
               <div style={{flex:1.4,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px"}}>
@@ -836,7 +908,7 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
         })()}
 
         <label style={bLbl}>Task Name</label>
-        <input value={f.title} onChange={e=>set("title",e.target.value)} disabled={readOnly} style={bInp} onFocus={FL} onBlur={FB}/>
+        <input value={f.title} onChange={e=>{const v=e.target.value;setF(x=>({...x,title:v,priority:v.includes("🚨")?"high":x.priority==="high"&&!v.includes("🚨")?"normal":x.priority}));}} disabled={readOnly} style={bInp} onFocus={FL} onBlur={FB}/>
 
         <label style={bLbl}>Sub Title</label>
         <input value={f.subTitle||""} onChange={e=>set("subTitle",e.target.value)} disabled={readOnly} placeholder="Optional subtitle…" style={{...bInp,marginBottom:12,fontSize:12,color:MUTED}} onFocus={FL} onBlur={FB}/>
@@ -936,6 +1008,21 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
           <div>
             <label style={bLbl}>Assigned To</label>
             <input value={f.who||""} onChange={e=>set("who",e.target.value)} disabled={readOnly} placeholder="M, Matt, Kels…" style={bInp} onFocus={FL} onBlur={FB}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <div>
+              <label style={bLbl}>Brand</label>
+              <select value={f.brand||""} onChange={e=>set("brand",e.target.value)} disabled={readOnly} style={{...selS,marginBottom:0}}>
+                <option value="">None</option>
+                {(brands||[]).map(b=><option key={b.id} value={b.label}>{b.emoji} {b.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={bLbl}>Gameday</label>
+              <select value={f.gameday||""} onChange={e=>set("gameday",e.target.value)} disabled={readOnly} style={{...selS,marginBottom:0}}>
+                {GAMEDAY_OPTS.map(o=><option key={o} value={o}>{o||"None"}</option>)}
+              </select>
+            </div>
           </div>
           <label style={bLbl}>Cover Photo URL</label>
           <div style={{marginBottom:12}}>
@@ -1730,7 +1817,14 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
       const numMap={},wdMap={},otherMap={};
       rec.forEach(t=>{
         const p=parseFreq(t.frequency);
-        if(p.type==="month_day"){const sk=p.day===-1?999:p.day;const lbl=p.day===-1?"Every Last":"Every "+p.day;if(!numMap[lbl])numMap[lbl]={lbl,sk,items:[]};numMap[lbl].items.push(t);}
+        if(p.type==="annual"){
+    const today=new Date(todayStr()+"T00:00:00");
+    let yr=today.getFullYear();
+    let candidate=new Date(yr,p.month-1,p.day);
+    if(candidate<=today)candidate=new Date(yr+1,p.month-1,p.day);
+    return candidate.toISOString().split("T")[0];
+  }
+  if(p.type==="month_day"){const sk=p.day===-1?999:p.day;const lbl=p.day===-1?"Every Last":"Every "+p.day;if(!numMap[lbl])numMap[lbl]={lbl,sk,items:[]};numMap[lbl].items.push(t);}
         else if(p.type==="days"&&!isNaN(parseInt(t.frequency.trim()))){const n=parseInt(t.frequency.trim());const lbl="Every "+n+" days";if(!numMap[lbl])numMap[lbl]={lbl,sk:n*0.01,items:[]};numMap[lbl].items.push(t);}
         else if(p.type==="weekday"){const lbl=WDL[p.day];if(!wdMap[p.day])wdMap[p.day]={lbl,sk:p.day,items:[]};wdMap[p.day].items.push(t);}
         else{const lbl=p.label||t.frequency;if(!otherMap[lbl])otherMap[lbl]={lbl,items:[]};otherMap[lbl].items.push(t);}
@@ -2307,6 +2401,7 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
 function MainApp({user,board,onBack,onSignOut}){
   const [tasks,setTasks]=useState([]),[buckets,setBuckets]=useState([]),[settings,setSettings]=useState(DEF_SETTINGS);
   const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
+  const [brands,setBrands]=useState([]),[showBrands,setShowBrands]=useState(false);
   const [editing,setEditing]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
   const [activeTab,setActiveTab]=useState("all"),[viewMode,setViewMode]=useState("day"),[draggingId,setDraggingId]=useState(null);
   const [loading,setLoading]=useState(true),[userRole,setUserRole]=useState("editor"),[syncing,setSyncing]=useState(false);
@@ -2375,6 +2470,7 @@ function MainApp({user,board,onBack,onSignOut}){
         };
         setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));
         if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
+        if(sr.data.brands_json){try{setBrands(JSON.parse(sr.data.brands_json));}catch{}}
       }
       setLoading(false);
       subRef.current=sub=db.channel(`board-${board.id}`)
@@ -2553,14 +2649,14 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
-  const saveActions=async list=>{
+  const saveBrands=async list=>{setBrands(list);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
     setActions(list);setShowActions(false);
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
   const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions),brands_json:JSON.stringify(brands)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2708,9 +2804,9 @@ function MainApp({user,board,onBack,onSignOut}){
           onClose={()=>setShowQuickAdd(false)}
         />
       )}
-      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
+      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
@@ -2726,6 +2822,7 @@ function MainApp({user,board,onBack,onSignOut}){
       {showLog&&<ActivityLog logKey={logKey} onClose={()=>setShowLog(false)}/> }
 
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
+      {showBrands&&<BrandMgrView brands={brands} onSave={saveBrands} onClose={()=>setShowBrands(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
       {showMembers&&<MembersModal board={board} userRole={userRole} currentUser={user} onClose={()=>setShowMembers(false)}/>}
     </div>
