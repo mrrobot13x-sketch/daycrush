@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.33</title>
+<title>DayCrush v2.34</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -132,9 +132,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',person:r.person||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,person:t.person||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',person:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',person:r.person||'',isRef:r.is_ref||false,subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,person:t.person||null,is_ref:t.isRef||false,keep_link:t.keepLink||null});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',person:'',isRef:false,subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
 const taskDaysSinceDone=t=>{
   if(!t.completionLog||!t.completionLog.length)return null;
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
@@ -1143,8 +1143,9 @@ function InlineAdd({colId,boardId,onAdd,onCancel}){
   );
 }
 
-function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,onDragOver,onDrop,isDragging,listMode,readOnly,hideToday,hideTime,celebrating}){
+function TaskCard({task,buckets,onEdit,onDelete,onCheck,onDuplicate,showBucket,onDragStart,onDragOver,onDrop,isDragging,listMode,readOnly,hideToday,hideTime,celebrating}){
   const [hov,setHov]=useState(false);
+  const [hovMenu,setHovMenu]=useState(false);
   const dl=task.dueDate?dueLabel(task.dueDate,task.who,task.timeOfDay):null;
   const hideTodayFlag=hideToday||(hideTime&&task.time&&daysDiff(task.dueDate||"9999-01-01")===0);
   const dlShow=dl&&!(hideTodayFlag&&dl.color===LIME&&task.dueDate&&daysDiff(task.dueDate)===0)?dl:null;
@@ -1195,11 +1196,22 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
             {(()=>{const titleCol=(celebrating_||isDone)?"#30D158":(task.priority==="high"&&!celebrating_&&!isDone)?"#FF453A":cardText||TEXT;return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
             {task.subTitle&&!celebrating_&&!isDone&&<div style={{fontSize:11,color:MUTED,lineHeight:1.3,marginTop:1,wordBreak:"break-word"}}>{task.subTitle}</div>}
           </div>
-          <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4}}>
+          <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4,position:"relative"}}>
             {celebrating_&&<span style={{fontSize:12,color:"#30D158",fontWeight:700}}>DONE! ✅</span>}
             {isDone&&!celebrating_&&<span style={{fontSize:10,color:"#30D15877",fontWeight:600}}>✓ done</span>}
             {!celebrating_&&!isDone&&task.priority==="high"&&<span style={{fontSize:11}}>🚨</span>}
             {!celebrating_&&!isDone&&showBucket&&bkt&&(task.link?<a href={task.link.startsWith("http")?task.link:"https://"+task.link} target="_blank" rel="noopener" onClick={e=>e.stopPropagation()} style={{fontSize:13,opacity:.7,textDecoration:"none",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=.7}>{bkt.emoji}</a>:<span style={{fontSize:13,opacity:.7}}>{bkt.emoji}</span>)}
+            {!celebrating_&&!isDone&&!readOnly&&(onDelete||onDuplicate)&&hov&&(
+              <div style={{position:"relative"}}>
+                <button onClick={e=>{e.stopPropagation();setHovMenu(m=>!m);}} style={{background:"none",border:"none",cursor:"pointer",color:MUTED,fontSize:14,padding:"0 2px",lineHeight:1,letterSpacing:1}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>⋯</button>
+                {hovMenu&&(
+                  <div onClick={e=>e.stopPropagation()} style={{position:"absolute",right:0,top:"calc(100% + 2px)",background:"#1a1a1a",border:`1px solid #333`,borderRadius:9,zIndex:999,minWidth:150,boxShadow:"0 8px 24px rgba(0,0,0,.9)"}}>
+                    {onDuplicate&&<button onClick={e=>{e.stopPropagation();onDuplicate(task);setHovMenu(false);}} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px 13px",background:"none",border:"none",cursor:"pointer",color:TEXT,fontFamily:"inherit",fontSize:12,textAlign:"left",borderRadius:"9px 9px 0 0"}} onMouseEnter={e=>e.currentTarget.style.background="#222"} onMouseLeave={e=>e.currentTarget.style.background="none"}>📋 Duplicate</button>}
+                    {onDelete&&<button onClick={e=>{e.stopPropagation();onDelete(task.id);setHovMenu(false);}} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px 13px",background:"none",border:"none",cursor:"pointer",color:"#FF453A",fontFamily:"inherit",fontSize:12,textAlign:"left",borderRadius:onDuplicate?"0 0 9px 9px":"9px"}} onMouseEnter={e=>e.currentTarget.style.background="#1a0808"} onMouseLeave={e=>e.currentTarget.style.background="none"}>🗑 Delete</button>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {!celebrating_&&!isDone&&(()=>{
@@ -2094,9 +2106,85 @@ function QuickAddBar({boardId,onAdd,onOpenModal,readOnly}){
   );
 }
 
+function RefBoardView({tasks,buckets,boardId,onAdd,onEdit,readOnly}){
+  const refTasks=[...tasks.filter(t=>t.isRef)].sort((a,b)=>(b.manualOrder||0)-(a.manualOrder||0));
+  const [draft,setDraft]=useState(""),draftRef=useRef();
+  const [draftNotes,setDraftNotes]=useState(""),draftBkt=useRef(null);
+  const [draftBucket,setDraftBucket]=useState("");
+  const {border:rb,inp:ri,text:rt,muted:rm,cardBg:rBg}=useTheme();
+  const submit=()=>{
+    const ttl=draft.trim();if(!ttl)return;
+    const task=mkTask("list",boardId);
+    task.title=ttl;task.notes=draftNotes;task.bucketId=draftBucket||null;
+    task.isRef=true;task.dueDate="";
+    onAdd(task);
+    setDraft("");setDraftNotes("");setDraftBucket("");
+    setTimeout(()=>draftRef.current?.focus(),50);
+  };
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
+      {!readOnly&&(
+        <div style={{padding:"12px 16px",borderBottom:`1px solid ${rb}`,background:"#000",flexShrink:0}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+            <input ref={draftRef} value={draft} onChange={e=>setDraft(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submit();}}}
+              placeholder="Add reference note… Enter to save"
+              style={{flex:1,background:ri,border:`1px solid ${draft?"#444":rb}`,borderRadius:8,padding:"9px 13px",color:rt,fontSize:13,fontFamily:"inherit",outline:"none"}}
+              onFocus={FL} onBlur={FB}/>
+            <button onClick={submit} style={{width:36,height:36,borderRadius:8,border:"none",background:draft?LIME:"#1a1a1a",color:draft?"#000":"#444",fontSize:22,fontWeight:700,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+            <textarea value={draftNotes} onChange={e=>setDraftNotes(e.target.value)} placeholder="Notes (optional)…" rows={2}
+              style={{flex:1,background:ri,border:`1px solid ${rb}`,borderRadius:7,padding:"7px 10px",color:rt,fontSize:12,fontFamily:"inherit",outline:"none",resize:"none"}} onFocus={FL} onBlur={FB}/>
+            <select value={draftBucket} onChange={e=>setDraftBucket(e.target.value)}
+              style={{padding:"7px 10px",borderRadius:7,border:`1px solid ${rb}`,background:"#111",color:rt,fontSize:12,fontFamily:"inherit",outline:"none",minWidth:120}}>
+              <option value="">No bucket</option>
+              {buckets.filter(b=>!b.hidden).map(b=><option key={b.id} value={b.id}>{b.emoji} {b.label}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+      <div style={{padding:"10px 16px 4px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+        <span style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:1,textTransform:"uppercase"}}>📌 REFERENCE · {refTasks.length} notes</span>
+        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"4px 16px 24px"}}>
+        <div style={{maxWidth:680,margin:"0 auto"}}>
+          {refTasks.length===0&&(
+            <div style={{textAlign:"center",padding:"64px 0",color:MUTED,fontSize:14,fontStyle:"italic"}}>
+              <div style={{fontSize:32,marginBottom:12}}>📌</div>
+              No reference notes yet — add one above
+            </div>
+          )}
+          {refTasks.map(t=>{
+            const bkt=buckets.find(b=>b.id===t.bucketId);
+            return(
+              <div key={t.id} onClick={()=>onEdit(t)}
+                style={{background:rBg,borderRadius:10,border:`1px solid ${rb}`,padding:"12px 14px",marginBottom:8,cursor:"pointer",transition:"border-color .1s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#444"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor=rb}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                  {bkt&&<span style={{fontSize:15,flexShrink:0,marginTop:1}}>{bkt.emoji}</span>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,color:rt,fontWeight:600,lineHeight:1.4,wordBreak:"break-word"}}>{t.title||<span style={{color:rm,fontStyle:"italic"}}>Untitled</span>}</div>
+                    {t.notes&&<div style={{fontSize:12,color:rm,marginTop:5,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{t.notes}</div>}
+                  </div>
+                  <span style={{fontSize:12,color:rm,flexShrink:0,marginTop:2}}>›</span>
+                </div>
+                {bkt&&<div style={{marginTop:6}}><span style={{fontSize:9,color:bkt.mainColor||rm,fontWeight:600,letterSpacing:.3,borderRadius:3,padding:"1px 5px",border:`1px solid ${bkt.mainColor?bkt.mainColor+"44":rb}`}}>{bkt.label}</span></div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InboxView({tasks,buckets,boardId,onAdd,onEdit,readOnly}){
   // Sorted newest-first (highest manualOrder = added last = show first)
-  const inbox=[...tasks.filter(t=>!t.dueDate)].sort((a,b)=>(b.manualOrder||0)-(a.manualOrder||0));
+  const inbox=[...tasks.filter(t=>!t.dueDate&&!t.isRef)].sort((a,b)=>(b.manualOrder||0)-(a.manualOrder||0));
   const [draft,setDraft]=useState("");
   const inputRef=useRef();
   useEffect(()=>{if(!readOnly)inputRef.current?.focus();},[]);
@@ -2272,7 +2360,7 @@ function ActivityLog({logKey,onClose}){
   );
 }
 
-function Column({col,tasks,buckets,activeTab,onEdit,onDelete,onCheck,onAddTask,boardId,draggingId,celebratingIds,onDragStart,onDragOver,onDrop,onDropCol,readOnly}){
+function Column({col,tasks,buckets,activeTab,onEdit,onDelete,onCheck,onDuplicate,onAddTask,boardId,draggingId,celebratingIds,onDragStart,onDragOver,onDrop,onDropCol,readOnly}){
   const [adding,setAdding]=useState(false),[dragOver,setDragOver]=useState(false);
   const sorted=col.id==="list"?[...tasks].sort((a,b)=>{const da=a.dueDate?daysDiff(a.dueDate):999,db_=b.dueDate?daysDiff(b.dueDate):999;return da-db_;}): [...tasks].sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0));
   const {col:colBgT,border:bT,text:tT,muted:mT}=useTheme();
@@ -2280,7 +2368,7 @@ function Column({col,tasks,buckets,activeTab,onEdit,onDelete,onCheck,onAddTask,b
     <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);onDropCol(col.id);}} style={{background:dragOver?"#141414":colBgT,borderRadius:12,padding:"10px 8px",width:280,minWidth:280,flexShrink:0,display:"flex",flexDirection:"column",maxHeight:"100%",border:`1px solid ${dragOver?"#444":bT}`,transition:"background .15s"}}>
       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:9,paddingLeft:2,userSelect:"none",flexShrink:0}}><span style={{width:6,height:6,borderRadius:"50%",background:col.accent,display:"inline-block"}}/><span style={{fontWeight:700,fontSize:12,color:tT,letterSpacing:.8}}>{col.label}</span><span style={{fontSize:11,color:mT}}>{tasks.length}</span></div>
       <div style={{flex:1,overflowY:"auto",minHeight:0,paddingRight:2}}>
-        {sorted.map(t=><TaskCard key={t.id} task={t} buckets={buckets} showBucket={activeTab==="all"} onEdit={onEdit} onDelete={onDelete} onCheck={onCheck} readOnly={readOnly} celebrating={celebratingIds.has(t.id)} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} isDragging={draggingId===t.id}/>)}
+        {sorted.map(t=><TaskCard key={t.id} task={t} buckets={buckets} showBucket={activeTab==="all"} onEdit={onEdit} onDelete={onDelete} onCheck={onCheck} onDuplicate={onDuplicate} readOnly={readOnly} celebrating={celebratingIds.has(t.id)} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} isDragging={draggingId===t.id}/>)}
         {tasks.length===0&&!adding&&<div style={{textAlign:"center",padding:"24px 0",color:"#2a2a2a",fontSize:12}}>Empty</div>}
         {adding&&<InlineAdd colId={col.id} boardId={boardId} onAdd={t=>{onAddTask(t);setAdding(false);}} onCancel={()=>setAdding(false)}/>}
       </div>
@@ -2542,6 +2630,43 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
   );
 }
 
+function Sidebar({viewMode,onView,onClose,onSettings,onBuckets,onActions,onBrands,onPersons,board}){
+  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"📌",label:"Reference"}];
+  const row=(icon,label,onClick,active)=>(
+    <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 18px",border:"none",background:active?"#161616":"transparent",color:active?TEXT:MUTED,fontFamily:"inherit",fontSize:13,fontWeight:active?700:400,cursor:"pointer",textAlign:"left",borderRadius:0,transition:"background .1s"}}
+      onMouseEnter={e=>{if(!active)e.currentTarget.style.background="#111";}}
+      onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
+      <span style={{fontSize:16,lineHeight:1,width:20,textAlign:"center"}}>{icon}</span>{label}
+    </button>
+  );
+  const divider=()=><div style={{height:1,background:BORDER,margin:"6px 0"}}/>;
+  return(
+    <>
+      <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:450}}/>
+      <div style={{position:"fixed",left:0,top:0,bottom:0,width:240,background:"#0a0a0a",zIndex:451,display:"flex",flexDirection:"column",borderRight:`1px solid ${BORDER}`,boxShadow:"4px 0 24px rgba(0,0,0,.8)"}}>
+        <div style={{padding:"16px 18px 12px",borderBottom:`1px solid ${BORDER}`,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <Logo size={18}/>
+            <div style={{fontWeight:800,fontSize:13,letterSpacing:-.5}}>{board?.emoji} {board?.name}</div>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",paddingTop:6}}>
+          <div style={{fontSize:9,color:MUTED,fontWeight:700,letterSpacing:1.2,padding:"6px 18px 2px",textTransform:"uppercase"}}>Views</div>
+          {VIEWS.map(v=>row(v.icon,v.label,()=>{onView(v.id);onClose();},viewMode===v.id))}
+          {divider()}
+          <div style={{fontSize:9,color:MUTED,fontWeight:700,letterSpacing:1.2,padding:"6px 18px 2px",textTransform:"uppercase"}}>Managers</div>
+          {row("📦","Buckets",()=>{onBuckets();onClose();})}
+          {row("⚡","Actions",()=>{onActions();onClose();})}
+          {row("🏷","Brands",()=>{onBrands();onClose();})}
+          {row("👤","People",()=>{onPersons();onClose();})}
+          {divider()}
+          {row("⚙","Settings",()=>{onSettings();onClose();})}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function MainApp({user,board,onBack,onSignOut}){
   const [tasks,setTasks]=useState([]),[buckets,setBuckets]=useState([]),[settings,setSettings]=useState(DEF_SETTINGS);
   const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
@@ -2553,6 +2678,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const [celebratingIds,setCelebratingIds]=useState(new Set());
   const celebratingRef=useRef(new Set()); // tracks IDs mid-celebration to block realtime clobber
   const [showQuickAdd,setShowQuickAdd]=useState(false);
+  const [showSidebar,setShowSidebar]=useState(false);
   const [showLog,setShowLog]=useState(false);
   const [showInbox,setShowInbox]=useState(false);
   const [dayFilter,setDayFilter]=useState("today");
@@ -2740,6 +2866,14 @@ function MainApp({user,board,onBack,onSignOut}){
     if(!error){setTasks(ts=>ts.filter(t=>t.id!==id));setEditing(null);}
     else{console.error("delTask DB error",error);alert("Delete failed – please try again.");}
   };
+  const duplicateTask=async orig=>{
+    const dup={...orig,id:genId(),title:orig.title+" (copy)",manualOrder:Date.now(),done:false,completionLog:[]};
+    setSyncing(true);
+    const{error}=await db.from("tasks").upsert(t2db(dup,board.id));
+    setSyncing(false);
+    if(!error)setTasks(ts=>[...ts,dup]);
+    else{console.error("duplicateTask error",error);alert("Duplicate failed.");}
+  };
   const checkTask=async id=>{
     const ct=tasks.find(t=>t.id===id);
     if(!ct)return;
@@ -2812,16 +2946,24 @@ function MainApp({user,board,onBack,onSignOut}){
     if(!draggingId||draggingId===targetId)return;
     const from=tasks.find(t=>t.id===draggingId),to=tasks.find(t=>t.id===targetId);
     if(!from||!to||from.status!==to.status){setDraggingId(null);return;}
-    const fa={...from,manualOrder:to.manualOrder},ta={...to,manualOrder:from.manualOrder};
-    setTasks(ts=>ts.map(t=>t.id===draggingId?fa:t.id===targetId?ta:t));
+    // Proper insert: remove dragged, insert before target, reassign sequential order
+    const colTasks=[...tasks.filter(t=>t.status===from.status)].sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0));
+    const without=colTasks.filter(t=>t.id!==draggingId);
+    const tgtIdx=without.findIndex(t=>t.id===targetId);
+    without.splice(tgtIdx,0,from);
+    const reordered=without.map((t,i)=>({...t,manualOrder:i*10}));
+    setTasks(ts=>ts.map(t=>{const r=reordered.find(x=>x.id===t.id);return r||t;}));
     setDraggingId(null);
-    await db.from("tasks").upsert([t2db(fa,board.id),t2db(ta,board.id)]);
+    await db.from("tasks").upsert(reordered.map(t=>t2db(t,board.id)));
   };
   const handleDropCol=async colId=>{
     if(!draggingId)return;
     const m=tasks.find(t=>t.id===draggingId);
-    if(!m){setDraggingId(null);return;}
-    const u={...m,status:colId};
+    if(!m||m.status===colId){setDraggingId(null);return;}
+    // Place at end of target column
+    const colTasks=tasks.filter(t=>t.status===colId);
+    const maxOrder=colTasks.length>0?Math.max(...colTasks.map(t=>t.manualOrder||0))+10:0;
+    const u={...m,status:colId,manualOrder:maxOrder};
     setTasks(ts=>ts.map(t=>t.id===draggingId?u:t));
     setDraggingId(null);
     const{error}=await db.from("tasks").upsert(t2db(u,board.id));
@@ -2846,6 +2988,7 @@ function MainApp({user,board,onBack,onSignOut}){
     if(dayFilter==="overdue")return d<0;
     if(dayFilter.startsWith("wd:")){const _wd=parseInt(dayFilter.slice(3));return new Date(t.dueDate+"T00:00:00").getDay()===_wd;}
     if(hiddenBucketIds.size>0&&t.bucketId&&hiddenBucketIds.has(t.bucketId))return false;
+    if(t.isRef)return false; // ref tasks live in Ref view only
     return true;
   });
 
@@ -2853,7 +2996,7 @@ function MainApp({user,board,onBack,onSignOut}){
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
   const visibleBuckets=buckets.filter(b=>!b.hidden);
   const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...visibleBuckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
-  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"}];
+  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"📌",label:"Ref"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
 
@@ -2873,6 +3016,7 @@ function MainApp({user,board,onBack,onSignOut}){
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",height:46}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:MUTED,fontSize:20,padding:"0 4px 0 0",lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>‹</button>
+            <button onClick={()=>setShowSidebar(true)} style={{background:"none",border:"none",cursor:"pointer",color:MUTED,fontSize:18,padding:"0 6px",lineHeight:1,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>☰</button>
             <Logo size={22}/>
             <div>
               <div onClick={()=>setViewMode("inbox")} style={{fontWeight:800,fontSize:13,letterSpacing:-.5,display:"flex",alignItems:"center",gap:5,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.opacity=.75} onMouseLeave={e=>e.currentTarget.style.opacity=1} title="Open Inbox"><span style={{fontSize:15}}>{board.emoji}</span>{board.name}</div>
@@ -2898,7 +3042,7 @@ function MainApp({user,board,onBack,onSignOut}){
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <div style={{flex:1,overflowX:"auto",overflowY:"hidden",padding:"12px 16px 0",display:"flex",gap:10,alignItems:"stretch",minHeight:0}}>
           {COLS.filter(col=>!(col.id==="do"&&settings.hideEmptyDo&&vis.filter(t=>t.status==="do").length===0)).map(col=>(
-            <Column key={col.id} col={col} boardId={board.id} buckets={buckets} activeTab={activeTab} tasks={vis.filter(t=>t.status===col.id)} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} onAddTask={addTask} readOnly={readOnly} draggingId={draggingId} celebratingIds={celebratingIds} onDragStart={handleDragStart} onDragOver={()=>{}} onDrop={handleDrop} onDropCol={handleDropCol}/>
+            <Column key={col.id} col={col} boardId={board.id} buckets={buckets} activeTab={activeTab} tasks={vis.filter(t=>t.status===col.id)} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} onDuplicate={duplicateTask} onAddTask={addTask} readOnly={readOnly} draggingId={draggingId} celebratingIds={celebratingIds} onDragStart={handleDragStart} onDragOver={()=>{}} onDrop={handleDrop} onDropCol={handleDropCol}/>
           ))}
         </div>
         {!readOnly&&<div style={{padding:"8px 16px",borderTop:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",justifyContent:"flex-end"}}>
@@ -2917,6 +3061,7 @@ function MainApp({user,board,onBack,onSignOut}){
       {viewMode==="taba"&&<TabataView tasks={tasks} onCheck={checkTask} onEdit={setEditing} celebratingIds={celebratingIds}/>}
       {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
+      {viewMode==="ref"&&<RefBoardView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <DurationView tasks={vis} buckets={buckets} actions={actions} brands={brands} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
@@ -2953,6 +3098,7 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       </div>
 
+      {showSidebar&&<Sidebar viewMode={viewMode} onView={setViewMode} onClose={()=>setShowSidebar(false)} onSettings={()=>setShowSettings(true)} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} board={board}/>}
       {showQuickAdd&&(
         <QuickAddModal
           boardId={board.id}
