@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.31</title>
+<title>DayCrush v2.32</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -453,11 +453,15 @@ function BucketMgr({buckets,onSave,onClose}){
   const topLevel=list.filter(b=>!b.parentId);
 
   const BucketRow=({b,indent})=>(
-    <div style={{marginBottom:4,marginLeft:indent?24:0,position:"relative"}}>
-      <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
+    <div style={{marginBottom:4,marginLeft:indent?24:0,position:"relative",opacity:b.hidden?.45:1}}>
+      <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${b.hidden?"#333":BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"7px 9px"}}>
+        <button onClick={()=>upd(b.id,"hidden",!b.hidden)} title={b.hidden?"Show bucket":"Hide bucket"} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,padding:"1px 4px",color:b.hidden?"#444":"#30D158",flexShrink:0,lineHeight:1}}>
+          {b.hidden?"○":"✓"}
+        </button>
         {b.mainColor?<div style={{width:10,height:10,borderRadius:"50%",background:b.mainColor,flexShrink:0,boxShadow:`0 0 5px ${b.mainColor}88`}}/>:<div style={{width:10,height:10,borderRadius:"50%",background:"#2a2a2a",flexShrink:0,border:"1px solid #444"}}/>}
         <input value={b.emoji||""} onChange={e=>upd(b.id,"emoji",e.target.value)} style={{width:32,padding:"3px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:15,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
-        <input value={b.label} onChange={e=>upd(b.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+        <input value={b.label} onChange={e=>upd(b.id,"label",e.target.value)} style={{flex:1,padding:"5px 8px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:b.hidden?MUTED:TEXT,fontSize:12,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+        {b.hidden&&<span style={{fontSize:9,color:"#555",letterSpacing:.5,fontWeight:600,flexShrink:0}}>HIDDEN</span>}
         <div style={{position:"relative",flexShrink:0}}>
           <button onClick={()=>{setMenuOpen(m=>m===b.id?null:b.id);setConfirmDel(null);}} style={{background:"none",border:"none",color:MUTED,cursor:"pointer",fontSize:18,padding:"1px 6px",lineHeight:1,letterSpacing:1}}>⋯</button>
         </div>
@@ -554,7 +558,7 @@ function BrandMgrView({brands,onSave,onClose}){
         <span style={{fontWeight:700,fontSize:16}}>🏷 Brand Manager</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
-        {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
+        {list.map(a=>(
           <div key={a.id} style={{marginBottom:6}}>
             <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
               <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
@@ -598,7 +602,7 @@ function ActionMgr({actions,onSave,onClose}){
         <span style={{fontWeight:700,fontSize:16}}>⚡ Action Manager</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
-        {[...list].sort((a,b)=>a.label.localeCompare(b.label)).map(a=>(
+        {list.map(a=>(
           <div key={a.id} style={{marginBottom:6}}>
             <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
               <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
@@ -897,12 +901,12 @@ function EditMdl({task,tasks,buckets,actions,brands,onSave,onClose,onDelete,read
           return(
             <div style={{display:"flex",borderRadius:8,border:"1px solid #222",overflow:"hidden",marginBottom:14,background:"#0c0c0c"}}>
               {cell("FREQ",freqDisp,MUTED)}
-              {cell("DAYS AGO",dsd!==null?dsd:"—",MUTED)}
-              {cell("ΔTALLY",dt!==null?(dt>0?"+"+dt:dt):"—",dtCol)}
-              <div style={{flex:1.4,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px"}}>
+              <div style={{flex:1.4,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px",borderRight:"1px solid #1a1a1a"}}>
                 <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:MUTED,textTransform:"uppercase"}}>LAST DONE</div>
                 <div style={{fontSize:11,fontWeight:600,color:MUTED,lineHeight:1.2,textAlign:"center"}}>{lc?lc:"—"}</div>
               </div>
+              {cell("DAYS AGO",dsd!==null?dsd:"—",MUTED)}
+              {cell("ΔTALLY",dt!==null?(dt>0?"+"+dt:dt):"—",dtCol)}
             </div>
           );
         })()}
@@ -1134,7 +1138,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
             {(celebrating_||isDone)&&<span style={{color:"#000",fontSize:9,fontWeight:900,lineHeight:1}}>✓</span>}
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
-            {(()=>{const titleCol=(celebrating_||isDone)?"#30D158":cardText||TEXT;return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
+            {(()=>{const titleCol=(celebrating_||isDone)?"#30D158":(task.priority==="high"&&!celebrating_&&!isDone)?"#FF453A":cardText||TEXT;return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
           </div>
           <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4}}>
             {celebrating_&&<span style={{fontSize:12,color:"#30D158",fontWeight:700}}>DONE! ✅</span>}
@@ -1592,7 +1596,8 @@ function DayView({tasks,buckets,activeTab,onEdit,onDelete,onCheck,readOnly,celeb
   );
 }
 
-function TabataView(){
+function TabataView({tasks,onCheck,onEdit,celebratingIds}){
+  const [mode,setMode]=useState("manual"); // manual | tasks
   const [workSecs,setWorkSecs]=useState(40);
   const [restSecs,setRestSecs]=useState(20);
   const [rounds,setRounds]=useState(8);
@@ -1601,15 +1606,50 @@ function TabataView(){
   const [secs,setSecs]=useState(40);
   const [running,setRunning]=useState(false);
   const tickRef=useRef(null);
+  // Task mode state
+  const inProgressTasks=useMemo(()=>(tasks||[]).filter(t=>t.status==="do"&&!t.done).sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0)),[tasks]);
+  const [taskIdx,setTaskIdx]=useState(0);
+  const [skipped,setSkipped]=useState(new Set());
+  const currentTask=mode==="tasks"?inProgressTasks.filter((_,i)=>!skipped.has(i))[taskIdx]||null:null;
+  const taskWorkSecs=currentTask&&currentTask.duration?parseInt(currentTask.duration)*60:workSecs;
   const beep=(freq,dur)=>{try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type="sine";g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur/1000);o.start(ctx.currentTime);o.stop(ctx.currentTime+dur/1000);}catch{}};
-  const start=()=>{setPhase("work");setSecs(workSecs);setRound(1);setRunning(true);};
+  const start=()=>{
+    if(mode==="tasks"){setTaskIdx(0);setSkipped(new Set());setPhase("work");setSecs(taskWorkSecs||workSecs);setRound(1);setRunning(true);}
+    else{setPhase("work");setSecs(workSecs);setRound(1);setRunning(true);}
+  };
+  const skipTask=()=>{
+    setRunning(false);clearInterval(tickRef.current);
+    setSkipped(s=>{const ns=new Set(s);ns.add(taskIdx);return ns;});
+    const remaining=inProgressTasks.filter((_,i)=>i!==taskIdx&&!skipped.has(i));
+    if(remaining.length===0){setPhase("done");return;}
+    setPhase("work");setSecs(taskWorkSecs||workSecs);setRunning(true);
+  };
+  const markTaskDone=()=>{
+    if(currentTask&&onCheck)onCheck(currentTask);
+    setRunning(false);clearInterval(tickRef.current);
+    const remaining=inProgressTasks.filter((_,i)=>!skipped.has(i)&&i!==taskIdx);
+    if(remaining.length===0){setPhase("done");setRunning(false);return;}
+    setTaskIdx(i=>i+1);setPhase("work");
+    const nextTask=remaining[0];
+    setSecs(nextTask&&nextTask.duration?parseInt(nextTask.duration)*60:workSecs);
+    setRunning(true);
+  };
   const stop=()=>{setRunning(false);setPhase("idle");clearInterval(tickRef.current);};
   useEffect(()=>{
     if(!running)return;
     tickRef.current=setInterval(()=>{
       setSecs(s=>{
         if(s>1)return s-1;
-        // transition
+        if(mode==="tasks"){
+          // task mode: when timer hits 0, move to next task
+          beep(880,300);
+          const remaining=inProgressTasks.filter((_,i)=>!skipped.has(i));
+          const nextIdx=taskIdx+1;
+          if(nextIdx>=remaining.length){beep(440,600);setRunning(false);clearInterval(tickRef.current);setPhase("done");setSecs(0);}
+          else{setTaskIdx(nextIdx);const nt=remaining[nextIdx];setSecs(nt&&nt.duration?parseInt(nt.duration)*60:workSecs);}
+          return s;
+        }
+        // manual mode
         setPhase(ph=>{
           setRound(r=>{
             if(ph==="work"){
@@ -1625,8 +1665,9 @@ function TabataView(){
       });
     },1000);
     return()=>clearInterval(tickRef.current);
-  },[running,workSecs,restSecs,rounds]);
-  const pct=phase==="work"?secs/workSecs:phase==="rest"?secs/restSecs:1;
+  },[running,workSecs,restSecs,rounds,mode,taskIdx,skipped,inProgressTasks]);
+  const effectiveWork=mode==="tasks"?(currentTask&&currentTask.duration?parseInt(currentTask.duration)*60:workSecs):workSecs;
+  const pct=phase==="work"?secs/effectiveWork:phase==="rest"?secs/restSecs:1;
   const phaseColor=phase==="work"?LIME:phase==="rest"?"#0A84FF":phase==="done"?"#30D158":"#444";
   const circumference=2*Math.PI*90;
   const numInput=(label,val,set,min,max)=>(
@@ -1639,28 +1680,63 @@ function TabataView(){
       </div>
     </div>
   );
+  const taskQueue=inProgressTasks.filter((_,i)=>!skipped.has(i));
+  const totalTasks=taskQueue.length;
+  const taskPos=Math.min(taskIdx,totalTasks-1);
   return(
-    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px",gap:24}}>
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",padding:"24px 16px",gap:20}}>
       <div style={{fontSize:13,fontWeight:800,letterSpacing:2,color:MUTED,textTransform:"uppercase"}}>Tabata Timer</div>
+      {/* Mode toggle */}
+      {(phase==="idle"||phase==="done")&&(
+        <div style={{display:"flex",borderRadius:9,border:`1px solid ${BORDER}`,overflow:"hidden"}}>
+          {[{id:"manual",label:"Manual"},  {id:"tasks",label:"In Progress Tasks"}].map(m=>(
+            <button key={m.id} onClick={()=>setMode(m.id)} style={{padding:"7px 18px",border:"none",background:mode===m.id?LIME:"transparent",color:mode===m.id?"#000":MUTED,fontWeight:700,fontSize:12,fontFamily:"inherit",cursor:"pointer"}}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Task queue info */}
+      {mode==="tasks"&&phase==="idle"&&(
+        <div style={{width:"100%",maxWidth:360,background:"#111",borderRadius:10,border:`1px solid ${BORDER}`,padding:"12px 14px"}}>
+          <div style={{fontSize:10,color:MUTED,fontWeight:700,letterSpacing:1,marginBottom:8}}>IN PROGRESS · {totalTasks} tasks</div>
+          {totalTasks===0?<div style={{fontSize:12,color:"#555",fontStyle:"italic"}}>No tasks in In Progress column</div>
+          :taskQueue.map((t,i)=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<taskQueue.length-1?`1px solid #1a1a1a`:"none"}}>
+              <span style={{fontSize:10,color:MUTED,width:16,textAlign:"right",flexShrink:0}}>{i+1}.</span>
+              <span style={{flex:1,fontSize:12,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</span>
+              {t.duration&&<span style={{fontSize:10,color:"#FF9F0A",flexShrink:0}}>{t.duration}m</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Current task in progress */}
+      {mode==="tasks"&&running&&currentTask&&(
+        <div style={{width:"100%",maxWidth:360,background:"#0c1a0c",borderRadius:10,border:"1px solid #30D15844",padding:"12px 14px",textAlign:"center"}}>
+          <div style={{fontSize:10,color:MUTED,letterSpacing:1,marginBottom:4}}>NOW WORKING ON ({taskPos+1}/{totalTasks})</div>
+          <div style={{fontSize:15,fontWeight:700,color:LIME,lineHeight:1.3}}>{currentTask.title||"Untitled"}</div>
+          {currentTask.duration&&<div style={{fontSize:10,color:MUTED,marginTop:4}}>{currentTask.duration} min</div>}
+        </div>
+      )}
       {/* Ring */}
-      <div style={{position:"relative",width:220,height:220,flexShrink:0}}>
-        <svg width={220} height={220} style={{transform:"rotate(-90deg)"}}>
-          <circle cx={110} cy={110} r={90} fill="none" stroke="#1a1a1a" strokeWidth={12}/>
-          <circle cx={110} cy={110} r={90} fill="none" stroke={phaseColor} strokeWidth={12}
-            strokeDasharray={circumference} strokeDashoffset={circumference*(1-pct)}
+      <div style={{position:"relative",width:200,height:200,flexShrink:0}}>
+        <svg width={200} height={200} style={{transform:"rotate(-90deg)"}}>
+          <circle cx={100} cy={100} r={86} fill="none" stroke="#1a1a1a" strokeWidth={12}/>
+          <circle cx={100} cy={100} r={86} fill="none" stroke={phaseColor} strokeWidth={12}
+            strokeDasharray={2*Math.PI*86} strokeDashoffset={2*Math.PI*86*(1-pct)}
             style={{transition:"stroke-dashoffset .9s linear,stroke .3s"}}/>
         </svg>
         <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}>
-          <div style={{fontSize:54,fontWeight:900,color:phaseColor,lineHeight:1,fontVariantNumeric:"tabular-nums"}}>
-            {phase==="idle"?"GO":phase==="done"?"✓":String(secs).padStart(2,"0")}
+          <div style={{fontSize:50,fontWeight:900,color:phaseColor,lineHeight:1,fontVariantNumeric:"tabular-nums"}}>
+            {phase==="idle"?"GO":phase==="done"?"✓":`${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")}`}
           </div>
-          {phase!=="idle"&&phase!=="done"&&<div style={{fontSize:11,color:phaseColor,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>{phase==="work"?"WORK":"REST"}</div>}
-          {phase!=="idle"&&phase!=="done"&&<div style={{fontSize:10,color:MUTED}}>Round {round} of {rounds}</div>}
+          {phase!=="idle"&&phase!=="done"&&mode==="manual"&&<div style={{fontSize:11,color:phaseColor,fontWeight:700,letterSpacing:2}}>{phase==="work"?"WORK":"REST"}</div>}
+          {phase!=="idle"&&phase!=="done"&&<div style={{fontSize:10,color:MUTED}}>{mode==="tasks"?`Task ${taskPos+1}/${totalTasks}`:`Round ${round}/${rounds}`}</div>}
           {phase==="done"&&<div style={{fontSize:11,color:"#30D158",fontWeight:700,letterSpacing:1}}>DONE! 🎉</div>}
         </div>
       </div>
-      {/* Controls */}
-      {!running&&phase!=="work"&&phase!=="rest"&&(
+      {/* Manual controls */}
+      {mode==="manual"&&!running&&phase!=="work"&&phase!=="rest"&&(
         <div style={{display:"flex",gap:20,flexWrap:"wrap",justifyContent:"center"}}>
           {numInput("Work (s)",workSecs,setWorkSecs,5,300)}
           {numInput("Rest (s)",restSecs,setRestSecs,5,300)}
@@ -1668,26 +1744,24 @@ function TabataView(){
         </div>
       )}
       {/* Buttons */}
-      <div style={{display:"flex",gap:12}}>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center"}}>
         {phase==="idle"||phase==="done"?(
-          <button onClick={start} style={{padding:"13px 40px",borderRadius:12,border:"none",background:LIME,color:"#000",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"inherit",letterSpacing:.5}}>
+          <button onClick={start} disabled={mode==="tasks"&&totalTasks===0} style={{padding:"13px 40px",borderRadius:12,border:"none",background:LIME,color:"#000",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"inherit",opacity:mode==="tasks"&&totalTasks===0?.4:1}}>
             {phase==="done"?"Restart":"Start"}
           </button>
         ):(
           <>
-            <button onClick={()=>setRunning(r=>!r)} style={{padding:"13px 28px",borderRadius:12,border:"none",background:running?"#1a1a1a":LIME,color:running?TEXT:"#000",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${running?"#333":LIME}`}}>
+            <button onClick={()=>setRunning(r=>!r)} style={{padding:"12px 22px",borderRadius:12,border:`1px solid ${running?"#333":LIME}`,background:running?"#1a1a1a":LIME,color:running?TEXT:"#000",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
               {running?"Pause":"Resume"}
             </button>
-            <button onClick={stop} style={{padding:"13px 28px",borderRadius:12,border:`1px solid ${"#FF453A44"}`,background:"#1a0808",color:"#FF453A",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-              Stop
-            </button>
+            {mode==="tasks"&&currentTask&&<button onClick={markTaskDone} style={{padding:"12px 18px",borderRadius:12,border:"1px solid #30D15844",background:"#0a140a",color:"#30D158",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>✓ Done</button>}
+            {mode==="tasks"&&<button onClick={skipTask} style={{padding:"12px 18px",borderRadius:12,border:`1px solid ${BORDER}`,background:"#111",color:MUTED,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Skip →</button>}
+            <button onClick={stop} style={{padding:"12px 22px",borderRadius:12,border:"1px solid #FF453A44",background:"#1a0808",color:"#FF453A",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Stop</button>
           </>
         )}
       </div>
-      {/* Summary */}
-      {phase==="idle"&&<div style={{fontSize:11,color:MUTED,textAlign:"center",lineHeight:1.8}}>
-        {rounds} rounds · {workSecs}s work / {restSecs}s rest<br/>
-        Total: ~{Math.round((workSecs+restSecs)*rounds/60)} min
+      {mode==="manual"&&phase==="idle"&&<div style={{fontSize:11,color:MUTED,textAlign:"center",lineHeight:1.8}}>
+        {rounds} rounds · {workSecs}s work / {restSecs}s rest · ~{Math.round((workSecs+restSecs)*rounds/60)} min
       </div>}
     </div>
   );
@@ -1699,7 +1773,7 @@ function DayAddCard({boardId,onAdd}){
   :<button onClick={()=>setAdding(true)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:`1px dashed ${BORDER}`,borderRadius:9,cursor:"pointer",color:MUTED,fontSize:13,fontFamily:"inherit",padding:"9px 14px",width:"100%",justifyContent:"center",marginBottom:16}} onMouseEnter={e=>{e.currentTarget.style.borderColor="#444";e.currentTarget.style.color=TEXT;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.color=MUTED;}}>+ Add Card</button>;
 }
 
-function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId}){
+function DurationView({tasks,buckets,actions,brands,activeTab,onEdit,onDelete,onCheck,readOnly,celebratingIds,onAddTask,boardId}){
   const sb=activeTab==="all";
   const todOrd=t=>{if(t.timeOfDay==="day")return 0;if(!t.timeOfDay)return 1;if(t.timeOfDay==="night")return 2;return 1;};
   const fmtMin=m=>{if(!m||m===0)return"0m";if(m<60)return`${m}m`;return`${Math.floor(m/60)}h ${m%60?("0"+m%60).slice(-2)+"m":""}`.trim();};
@@ -1713,6 +1787,8 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
   const [durTimeF,setDurTimeF]=useState("all");
   const [durFreqF,setDurFreqF]=useState("all");
   const [durStatusF,setDurStatusF]=useState("all");
+  const [durBrandF,setDurBrandF]=useState("all");
+  const [durGamedayF,setDurGamedayF]=useState("all");
   const selStyle={padding:"5px 9px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   // All tasks (no date gate - List view shows everything)
   const relevant=tasks;
@@ -1730,6 +1806,8 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
     if(durActionF!=="all"&&(t.action||"")!==durActionF)return false;
     if(durBucketF!=="all"&&(t.bucketId||"")!==durBucketF)return false;
     if(durPriorityF!=="all"&&(t.priority||"normal")!==durPriorityF)return false;
+    if(durBrandF!=="all"&&(t.brand||"")!==durBrandF)return false;
+    if(durGamedayF!=="all"&&(t.gameday||"")!==durGamedayF)return false;
     return true;
   });
   const withDur=[...filtered.filter(t=>t.duration&&parseInt(t.duration)>0)].sort((a,b)=>parseInt(a.duration)-parseInt(b.duration));
@@ -1842,6 +1920,8 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
   // Unique action/bucket values for filter dropdowns
   const usedActions=[...new Set(relevant.map(t=>t.action||"").filter(Boolean))].sort();
   const usedBuckets=[...new Set(relevant.map(t=>t.bucketId||"").filter(Boolean))];
+  const usedBrands=[...new Set(relevant.map(t=>t.brand||"").filter(Boolean))].sort();
+  const usedGamedays=[...new Set(relevant.map(t=>t.gameday||"").filter(Boolean))];
   return(
     <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
       {/* Filter bar */}
@@ -1890,6 +1970,14 @@ function DurationView({tasks,buckets,actions,activeTab,onEdit,onDelete,onCheck,r
           <option value="all">All Priorities</option>
           {PRIORITIES.map(p=><option key={p.id} value={p.id}>{p.emoji||""} {p.label}</option>)}
         </select>
+        {usedBrands.length>0&&<select value={durBrandF} onChange={e=>setDurBrandF(e.target.value)} style={selStyle}>
+          <option value="all">All Brands</option>
+          {usedBrands.map(b=>{const br=(brands||[]).find(x=>x.label===b);return<option key={b} value={b}>{br?`${br.emoji} `:""}{b}</option>;})}
+        </select>}
+        {usedGamedays.length>0&&<select value={durGamedayF} onChange={e=>setDurGamedayF(e.target.value)} style={selStyle}>
+          <option value="all">All Gamedays</option>
+          {usedGamedays.map(g=><option key={g} value={g}>{g}</option>)}
+        </select>}
         {totalMin>0&&<span style={{marginLeft:"auto",fontSize:11,color:MUTED}}>⏱ <span style={{color:TEXT,fontWeight:700}}>{fmtMin(totalMin)}</span> · {withDur.length} tasks</span>}
       </div>
       {/* Task list */}
@@ -2065,16 +2153,17 @@ function HealthView({tasks,buckets,onEdit,activeTab,childBucketIds}){
       .sort((a,b)=>a.sortKey-b.sortKey)
   ].sort((a,b)=>a.sortKey-b.sortKey);
 
+  const [healthQ,setHealthQ]=useState("");
+  const displayRows=healthQ.trim()?allRows.filter(({t})=>(t.title||"").toLowerCase().includes(healthQ.toLowerCase())):allRows;
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
-      <div style={{padding:"10px 16px 4px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
-        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
-        <span style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:1,textTransform:"uppercase"}}>⬡ HEALTH · {allRows.length} tasks</span>
-        <div style={{flex:1,height:1,background:"#1a1a1a"}}/>
+      <div style={{padding:"10px 16px 6px",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+        <input value={healthQ} onChange={e=>setHealthQ(e.target.value)} placeholder="Filter tasks…" style={{flex:1,padding:"6px 10px",borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+        <span style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:.5,flexShrink:0}}>⬡ {displayRows.length}</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"4px 16px 24px"}}>
         <div style={{maxWidth:640,margin:"0 auto"}}>
-          {allRows.map(({t,status,color,bg})=>{
+          {displayRows.map(({t,status,color,bg})=>{
             const bkt=buckets.find(b=>b.id===t.bucketId);
             return(
               <div key={t.id} onClick={()=>onEdit(t)}
@@ -2088,7 +2177,7 @@ function HealthView({tasks,buckets,onEdit,activeTab,childBucketIds}){
               </div>
             );
           })}
-          {allRows.length===0&&<div style={{textAlign:"center",padding:"64px 0",color:MUTED,fontSize:14,fontStyle:"italic"}}><div style={{fontSize:32,marginBottom:12}}>⬡</div>No tasks to show</div>}
+          {displayRows.length===0&&<div style={{textAlign:"center",padding:"64px 0",color:MUTED,fontSize:14,fontStyle:"italic"}}><div style={{fontSize:32,marginBottom:12}}>⬡</div>No tasks to show</div>}
         </div>
       </div>
     </div>
@@ -2649,7 +2738,7 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
-  const saveBrands=async list=>{setBrands(list);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
+  const saveBrands=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setBrands(sorted);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
     setActions(list);setShowActions(false);
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
@@ -2680,6 +2769,7 @@ function MainApp({user,board,onBack,onSignOut}){
   };
 
   const childBucketIds=useMemo(()=>activeTab==="all"?[]:buckets.filter(b=>b.parentId===activeTab).map(b=>b.id),[activeTab,buckets]);
+  const hiddenBucketIds=new Set(buckets.filter(b=>b.hidden).map(b=>b.id));
   const vis=tasks.filter(t=>{
     // Bucket filter
     if(activeTab!=="all"&&t.bucketId!==activeTab&&!childBucketIds.includes(t.bucketId))return false;
@@ -2695,12 +2785,14 @@ function MainApp({user,board,onBack,onSignOut}){
     if(dayFilter==="tomorrow")return d===1;
     if(dayFilter==="overdue")return d<0;
     if(dayFilter.startsWith("wd:")){const _wd=parseInt(dayFilter.slice(3));return new Date(t.dueDate+"T00:00:00").getDay()===_wd;}
+    if(hiddenBucketIds.size>0&&t.bucketId&&hiddenBucketIds.has(t.bucketId))return false;
     return true;
   });
 
   const oCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0).length;
   const tCt=tasks.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0).length;
-  const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...buckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
+  const visibleBuckets=buckets.filter(b=>!b.hidden);
+  const tabs=[{id:"all",emoji:"",label:"ALL",color:null},...visibleBuckets.map(b=>({id:b.id,emoji:b.emoji,label:b.label,color:b.color||null}))];
   const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Cal"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"}];
 
   if(loading)return(<div style={{height:"100%",display:"flex",alignItems:"center",justifyContent:"center",background:"#000",flexDirection:"column",gap:12}}><Logo size={36}/><div className="spin" style={{width:20,height:20,border:`2px solid ${BORDER}`,borderTopColor:LIME,borderRadius:"50%"}}/><div style={{fontSize:12,color:MUTED}}>Loading {board.name}…</div></div>);
@@ -2757,12 +2849,12 @@ function MainApp({user,board,onBack,onSignOut}){
         <HourlyCalendar tasks={tasks} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} dayFilter={dayFilter} activeTab={activeTab} allBuckets={buckets}/>
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
-      {viewMode==="taba"&&<TabataView/>}
+      {viewMode==="taba"&&<TabataView tasks={tasks} onCheck={checkTask} onEdit={setEditing} celebratingIds={celebratingIds}/>}
       {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
-        <DurationView tasks={vis} buckets={buckets} actions={actions} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
+        <DurationView tasks={vis} buckets={buckets} actions={actions} brands={brands} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
       </div>}
 
       <div style={{borderTop:`1px solid ${theme.border}`,background:theme.navBg,flexShrink:0}}>
