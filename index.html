@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.28</title>
+<title>DayCrush v2.30</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -121,9 +121,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',keepLink:'',notifyMins:null,boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,keep_link:t.keepLink||null});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
 const taskDaysSinceDone=t=>{
   if(!t.completionLog||!t.completionLog.length)return null;
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
@@ -173,7 +173,7 @@ function AuthScreen({onAuth}){
   return(
     <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,background:"#000"}}>
       <div style={{width:"100%",maxWidth:360}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.28</div></div></div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:32,justifyContent:"center"}}><Logo size={36}/><div><div style={{fontWeight:800,fontSize:22,letterSpacing:-1}}>DayCrush</div><div style={{fontSize:9,color:"#1a5c6a",letterSpacing:2,fontWeight:700,textTransform:"uppercase"}}>v2.30</div></div></div>
         <div style={{display:"flex",marginBottom:20,border:`1px solid ${BORDER}`,borderRadius:10,overflow:"hidden"}}>
           {["login","signup"].map(m=><button key={m} onClick={()=>{setMode(m);setErr("");}} style={{flex:1,padding:"10px",background:mode===m?"#1a1a1a":"transparent",border:"none",cursor:"pointer",fontSize:13,fontWeight:mode===m?700:400,color:mode===m?TEXT:MUTED,fontFamily:"inherit"}}>{m==="login"?"Sign In":"Create Account"}</button>)}
         </div>
@@ -759,7 +759,7 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
 }
 
 function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
-  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
+  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -787,8 +787,8 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
               {bkt&&<span>{bkt.emoji}</span>}{pi.emoji&&<span style={{fontSize:13}}>{pi.emoji}</span>}
               <div style={{fontWeight:700,fontSize:16}}>{f.title||<span style={{color:MUTED,fontStyle:"italic"}}>Untitled</span>}</div>
             </div>
+            {f.subTitle&&<div style={{fontSize:12,color:MUTED,marginBottom:2,lineHeight:1.4}}>{f.subTitle}</div>}
             {dl&&<div style={{fontSize:12,color:dl.color,fontWeight:dl.weight}}>{dl.text}</div>}
-            {ld&&<div style={{fontSize:11,color:"#30D158",marginTop:2,opacity:.8}}>✓ Last: {Math.abs(daysDiff(ld.doneAt.split("T")[0]))}d ago</div>}
           </div>
           <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
             {!readOnly&&<select value={f.status} onChange={e=>set("status",e.target.value)} style={{padding:"4px 7px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:COLS.find(c=>c.id===f.status)?.accent||MUTED,fontSize:11,fontFamily:"inherit",cursor:"pointer",outline:"none",fontWeight:700}}>
@@ -807,8 +807,53 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
           {f.dueDate&&<button onClick={()=>{const d=new Date(f.dueDate+"T00:00:00");d.setDate(d.getDate()+1);set("dueDate",d.toISOString().split("T")[0]);}} style={{padding:"10px 14px",borderRadius:9,border:"1px solid #FF9F0A44",background:"#1a0e00",color:"#FF9F0A",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5,flexShrink:0}} title="Snooze 1 day">💤 Snooze</button>}
         </div>}
 
+        {/* ── Scorecard (only for tasks with numeric frequency) ── */}
+        {(()=>{
+          const freq=parseInt((f.frequency||"").trim());
+          const hasFreq=!isNaN(freq)&&freq>0;
+          if(!hasFreq)return null;
+          const dsd=taskDaysSinceDone(f);
+          const dt=taskDeltaTally(f);
+          const lc=taskLastCompleted(f);
+          const cell=(label,val,col)=>(
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px",borderRight:"1px solid #1a1a1a"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:MUTED,textTransform:"uppercase"}}>{label}</div>
+              <div style={{fontSize:18,fontWeight:800,color:col||TEXT,lineHeight:1}}>{val}</div>
+            </div>
+          );
+          const dtCol=dt===null?MUTED:dt<0?"#FF453A":dt===0?"#FF9F0A":"#30D158";
+          return(
+            <div style={{display:"flex",borderRadius:8,border:"1px solid #222",overflow:"hidden",marginBottom:14,background:"#0c0c0c"}}>
+              {cell("FREQ",freq,MUTED)}
+              {cell("DAYS AGO",dsd!==null?dsd:"—",MUTED)}
+              {cell("ΔTALLY",dt!==null?(dt>0?"+"+dt:dt):"—",dtCol)}
+              <div style={{flex:1.4,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"8px 4px"}}>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:MUTED,textTransform:"uppercase"}}>LAST DONE</div>
+                <div style={{fontSize:11,fontWeight:600,color:MUTED,lineHeight:1.2,textAlign:"center"}}>{lc?lc:"—"}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         <label style={bLbl}>Task Name</label>
         <input value={f.title} onChange={e=>set("title",e.target.value)} disabled={readOnly} style={bInp} onFocus={FL} onBlur={FB}/>
+
+        <label style={bLbl}>Sub Title</label>
+        <input value={f.subTitle||""} onChange={e=>set("subTitle",e.target.value)} disabled={readOnly} placeholder="Optional subtitle…" style={{...bInp,marginBottom:12,fontSize:12,color:MUTED}} onFocus={FL} onBlur={FB}/>
+
+        {/* Notes — moved here, right after title block */}
+        <label style={bLbl}>Notes</label>
+        {readOnly?(
+          <div style={{...bInp,minHeight:40,whiteSpace:"pre-wrap",wordBreak:"break-word",cursor:"default",lineHeight:1.5,fontSize:12}}>
+            {(f.notes||"").split(/(https?:\/\/[^\s]+)/g).map((part,i)=>
+              part.match(/^https?:\/\//)
+                ?<a key={i} href={part} target="_blank" rel="noopener" style={{color:"#4ECDC4",textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>{part}</a>
+                :<span key={i}>{part}</span>
+            )}
+          </div>
+        ):(
+          <textarea ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}}} value={f.notes||""} onChange={e=>{set("notes",e.target.value);const el=e.target;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}} disabled={readOnly} rows={2} style={{...bInp,resize:"none",overflow:"auto",minHeight:56,maxHeight:180}} onFocus={FL} onBlur={FB}/>
+        )}
 
         {/* Row 1: Bucket + Action */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
@@ -865,20 +910,6 @@ function EditMdl({task,tasks,buckets,actions,onSave,onClose,onDelete,readOnly}){
             </div>
           </div>
         </div>
-
-        {/* Row 4: Notes */}
-        <label style={bLbl}>Notes</label>
-        {readOnly?(
-          <div style={{...bInp,minHeight:40,whiteSpace:"pre-wrap",wordBreak:"break-word",cursor:"default",lineHeight:1.5,fontSize:12}}>
-            {(f.notes||"").split(/(https?:\/\/[^\s]+)/g).map((part,i)=>
-              part.match(/^https?:\/\//)
-                ?<a key={i} href={part} target="_blank" rel="noopener" style={{color:"#4ECDC4",textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>{part}</a>
-                :<span key={i}>{part}</span>
-            )}
-          </div>
-        ):(
-          <textarea ref={el=>{if(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}}} value={f.notes||""} onChange={e=>{set("notes",e.target.value);const el=e.target;el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px";}} disabled={readOnly} rows={2} style={{...bInp,resize:"none",overflow:"auto",minHeight:56,maxHeight:180}} onFocus={FL} onBlur={FB}/>
-        )}
 
         {/* ── More Section ── */}
         <MoreSection open={showMore} onToggle={()=>setShowMore(o=>!o)}>
@@ -1895,10 +1926,15 @@ function InboxView({tasks,buckets,boardId,onAdd,onEdit,readOnly}){
   );
 }
 
-function HealthView({tasks,buckets,onEdit}){
+function HealthView({tasks,buckets,onEdit,activeTab,childBucketIds}){
   const {text:hvTx,border:hvBo,cardBg:hvCard}=useTheme();
+  // Bucket filter (respects activeTab, ignores date filter)
+  const bktFiltered=tasks.filter(t=>{
+    if(!activeTab||activeTab==="all")return true;
+    return t.bucketId===activeTab||(childBucketIds||[]).includes(t.bucketId);
+  });
   // Compute health for every task with a frequency
-  const rows=tasks
+  const rows=bktFiltered
     .filter(t=>t.frequency&&t.frequency.trim()&&!isNaN(parseInt(t.frequency.trim()))&&parseInt(t.frequency.trim())>0)
     .map(t=>{
       const dt=taskDeltaTally(t);
@@ -1922,7 +1958,7 @@ function HealthView({tasks,buckets,onEdit}){
   // Include tasks without frequency too, always GOOD unless overdue by date
   const allRows=[
     ...rows,
-    ...tasks
+    ...bktFiltered
       .filter(t=>!t.frequency||!t.frequency.trim()||isNaN(parseInt(t.frequency.trim()))||parseInt(t.frequency.trim())<=0)
       .map(t=>{
         const dueDiff=t.dueDate?daysDiff(t.dueDate):0;
@@ -2626,7 +2662,7 @@ function MainApp({user,board,onBack,onSignOut}){
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="taba"&&<TabataView/>}
-      {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing}/>}
+      {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
