@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.35</title>
+<title>DayCrush v2.36</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -801,11 +801,11 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,o
           {(()=>{
             const btn=(label,onClick,col)=>(<button onClick={onClick} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"9px 8px",borderRadius:8,border:`1px solid ${col?col+"44":BORDER}`,background:col?"#0a0a0a":CARD_BG,cursor:"pointer",color:col||TEXT,fontSize:11,fontFamily:"inherit",fontWeight:col?700:400}}>{label}</button>);
             return(<>
-              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}{btn("🏷 Brands",()=>{onBrands&&onBrands();onClose();})}{btn("👤 People",()=>{onPersons&&onPersons();onClose();})}</div>}
+              {/* Managers moved to Sidebar */}
               <div style={{display:"flex",gap:6}}>{btn("👥 Members",()=>{onMembers();onClose();})}{btn("📋 Log",()=>{onShowLog();onClose();})}</div>
               <div style={{display:"flex",gap:6}}>{btn("📤 Tasks",()=>onExportTasks())}{btn("📤 Log",()=>onExportLog())}</div>
               <div style={{display:"flex",gap:6}}>{btn("⚡ Board Sort",()=>{onBoardSort();onClose();},"#5E5CE6")}{btn("⟳ Clean Sort",()=>{onCleanSort();onClose();},"#4ECDC4")}</div>
-              <div style={{display:"flex",gap:6}}>{btn("💤 Snooze Overdue",()=>{onSnoozeOverdue();onClose();},"#FF9F0A")}{btn("◎ Tabata",()=>{onTabata&&onTabata();onClose();},"#5E5CE6")}</div>
+              <div style={{display:"flex",gap:6}}>{btn("💤 Snooze Overdue",()=>{onSnoozeOverdue();onClose();},"#FF9F0A")}</div>
               <div style={{display:"flex",gap:6}}>{btn(syncing?"↻ Syncing…":"↻ Sync Now",()=>{onSync&&onSync();},"#4ECDC4")}</div>
             </>);
           })()}
@@ -1367,6 +1367,26 @@ function HourlyCalendar({tasks,buckets,onEdit,onCheck,readOnly,celebratingIds,sb
         <div style={{fontSize:11,fontWeight:700,color:LIME,letterSpacing:.8,textTransform:"uppercase",whiteSpace:"nowrap"}}>{tdLbl}</div>
         <div style={{flex:1,height:1,background:BORDER}}/>
       </div>
+      {/* In Progress one-off tasks */}
+      {(()=>{
+        const ipTasks=_isToday?tasks.filter(t=>t.status==="inprogress"&&!(t.frequency&&t.frequency.trim())&&!t.done&&!t.isRef):[];
+        if(!ipTasks.length)return null;
+        return(
+          <div style={{padding:"8px 16px 0",flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"#0a0f1a",border:"1px solid #5E5CE644",borderRadius:8,padding:"8px 12px",marginBottom:4}}>
+              <span style={{fontSize:12,color:"#5E5CE6"}}>◉</span>
+              <span style={{fontSize:11,fontWeight:700,color:"#5E5CE6"}}>IN PROGRESS</span>
+              <span style={{fontSize:10,color:"#5E5CE688",marginLeft:4}}>{ipTasks.length} task{ipTasks.length!==1?"s":""}</span>
+            </div>
+            {ipTasks.map(t=>(
+              <div key={t.id} onClick={()=>onEdit(t)} style={{cursor:"pointer",padding:"7px 12px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:8}}>
+                {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:14,height:14,borderRadius:3,border:"1.5px solid #5E5CE6",background:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}/>}
+                <span style={{fontSize:12,color:"#5E5CE6AA",flex:1}}>{t.title||"Untitled"}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
       {/* Overdue */}
       {overdue.length>0&&(
         <div style={{padding:"8px 16px 0",flexShrink:0}}>
@@ -2111,6 +2131,125 @@ function QuickAddBar({boardId,onAdd,onOpenModal,readOnly}){
   );
 }
 
+function RefCardModal({task,onSave,onClose,onMore,onDelete,readOnly}){
+  const [title,setTitle]=useState(task.title||"");
+  const [subTitle,setSubTitle]=useState(task.subTitle||"");
+  const [notes,setNotes]=useState(task.notes||"");
+  const [editNotes,setEditNotes]=useState(false);
+  const notesRef=useRef();
+  const save=()=>{onSave({...task,title,subTitle,notes});onClose();};
+  useEffect(()=>{if(editNotes)notesRef.current?.focus();},[editNotes]);
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{if(e.target===e.currentTarget){save();}}}>
+      <div style={{background:"#0d0d0d",borderRadius:"16px 16px 0 0",width:"100%",maxWidth:600,maxHeight:"90vh",display:"flex",flexDirection:"column",border:`1px solid ${BORDER}`,borderBottom:"none"}}>
+        {/* Header */}
+        <div style={{padding:"14px 16px 10px",borderBottom:`1px solid ${BORDER}`,flexShrink:0,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:12,color:MUTED,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Reference</span>
+          <div style={{flex:1}}/>
+          {!readOnly&&<button onClick={()=>{if(window.confirm("Delete this reference card?"))onDelete(task.id);}} style={{background:"none",border:"none",cursor:"pointer",color:"#333",fontSize:14,padding:"2px 6px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>}
+          <button onClick={()=>{save();onMore(task);}} style={{background:"none",border:`1px solid ${BORDER}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",color:MUTED,fontSize:11,fontFamily:"inherit"}} onMouseEnter={e=>e.currentTarget.style.color=TEXT} onMouseLeave={e=>e.currentTarget.style.color=MUTED}>More ›</button>
+          <button onClick={save} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED,padding:"2px 4px"}}>✕</button>
+        </div>
+        {/* Body */}
+        <div style={{flex:1,overflowY:"auto",padding:"18px 18px 24px"}}>
+          {/* Title */}
+          {readOnly
+            ?<div style={{fontSize:20,fontWeight:800,color:TEXT,lineHeight:1.3,marginBottom:6}}>{title||<span style={{color:MUTED,fontStyle:"italic"}}>Untitled</span>}</div>
+            :<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Title…"
+               style={{width:"100%",fontSize:20,fontWeight:800,color:TEXT,background:"transparent",border:"none",outline:"none",fontFamily:"inherit",lineHeight:1.3,marginBottom:6,padding:0}}
+               onFocus={FL} onBlur={FB}/>
+          }
+          {/* Subtitle */}
+          {(subTitle||!readOnly)&&(
+            readOnly
+              ?subTitle&&<div style={{fontSize:13,color:MUTED,marginBottom:14,lineHeight:1.4}}>{subTitle}</div>
+              :<input value={subTitle} onChange={e=>setSubTitle(e.target.value)} placeholder="Subtitle…"
+                 style={{width:"100%",fontSize:13,color:MUTED,background:"transparent",border:"none",outline:"none",fontFamily:"inherit",marginBottom:14,padding:0}}
+                 onFocus={FL} onBlur={FB}/>
+          )}
+          {/* Notes */}
+          <div style={{minHeight:180}}>
+            {editNotes&&!readOnly
+              ?<textarea ref={notesRef} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Notes…"
+                 rows={10} style={{width:"100%",background:"#111",border:`1px solid #333`,borderRadius:10,padding:"12px 14px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",resize:"vertical",lineHeight:1.6}}
+                 onFocus={FL} onBlur={e=>{FB(e);setEditNotes(false);save();}}/>
+              :<div onClick={()=>!readOnly&&setEditNotes(true)}
+                 style={{minHeight:120,padding:"12px 14px",background:"#111",borderRadius:10,border:`1px solid #222`,cursor:readOnly?"default":"text",lineHeight:1.6,fontSize:14,color:notes?TEXT:MUTED,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                 {notes||<span style={{fontStyle:"italic"}}>Tap to add notes…</span>}
+               </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
+  const now=etNow();
+  const nm=now.getHours()*60+now.getMinutes();
+  const dateLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+  const overdue=tasks.filter(t=>!t.isRef&&t.dueDate&&daysDiff(t.dueDate)<0&&!t.done).sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||""));
+  const inNext2h=tasks.filter(t=>!t.isRef&&t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)>=nm&&t2m(t.time)<=nm+120&&!t.done).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  const Section=({title,color,icon,items,emptyMsg})=>(
+    <div style={{marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <span style={{fontSize:14}}>{icon}</span>
+        <span style={{fontWeight:700,fontSize:13,color,letterSpacing:.5,textTransform:"uppercase"}}>{title}</span>
+        <div style={{flex:1,height:1,background:color+"33",marginLeft:4}}/>
+        <span style={{fontSize:11,color,fontWeight:700,background:color+"22",padding:"2px 8px",borderRadius:99}}>{items.length}</span>
+      </div>
+      {items.length===0?(
+        <div style={{textAlign:"center",padding:"18px 0",color:MUTED,fontSize:12,fontStyle:"italic",background:"#0a0a0a",borderRadius:10,border:`1px solid ${BORDER}`}}>{emptyMsg}</div>
+      ):(
+        items.map(t=>{
+          const bkt=buckets.find(b=>b.id===t.bucketId);
+          const isDone=t.done||celebratingIds.has(t.id);
+          return(
+            <div key={t.id} onClick={()=>onEdit(t)}
+              style={{background:isDone?"#0a120a":"#0e0e0e",borderRadius:10,border:`1px solid ${isDone?"#30D15833":color+"33"}`,padding:"11px 14px",marginBottom:6,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"border-color .1s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=color+"66"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=isDone?"#30D15833":color+"33"}>
+              {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${isDone?"#30D158":color}`,background:isDone?"#30D158":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                {isDone&&<span style={{color:"#000",fontSize:8,fontWeight:900,lineHeight:1}}>✓</span>}
+              </div>}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,color:isDone?"#30D158":TEXT,fontWeight:500,lineHeight:1.4,textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+                  {t.time&&<span style={{fontSize:10,color:color,fontWeight:600}}>{fmtTime(t.time)}</span>}
+                  {t.dueDate&&daysDiff(t.dueDate)<0&&<span style={{fontSize:10,color:"#FF453A88"}}>{t.dueDate}</span>}
+                  {bkt&&<span style={{fontSize:10,color:bkt.mainColor||MUTED}}>{bkt.emoji} {bkt.label}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:"16px 16px 32px"}}>
+      <div style={{maxWidth:600,margin:"0 auto"}}>
+        {/* Date header */}
+        <div style={{marginBottom:20,textAlign:"center"}}>
+          <div style={{fontSize:11,color:MUTED,letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Today</div>
+          <div style={{fontSize:18,fontWeight:800,color:TEXT,letterSpacing:-.3}}>{dateLbl}</div>
+          {(overdue.length>0||inNext2h.length>0)&&(
+            <div style={{marginTop:8,fontSize:12,color:MUTED}}>
+              {overdue.length>0&&<span style={{color:"#FF453A",fontWeight:600}}>{overdue.length} overdue</span>}
+              {overdue.length>0&&inNext2h.length>0&&<span style={{margin:"0 6px",color:"#333"}}>·</span>}
+              {inNext2h.length>0&&<span style={{color:"#FF9F0A",fontWeight:600}}>{inNext2h.length} due in 2h</span>}
+            </div>
+          )}
+          {overdue.length===0&&inNext2h.length===0&&<div style={{marginTop:8,fontSize:12,color:"#30D158",fontWeight:600}}>✓ All clear — nothing urgent right now</div>}
+        </div>
+        <Section title="Overdue" color="#FF453A" icon="⚠" items={overdue} emptyMsg="No overdue tasks — great!"/>
+        <Section title="Due in the next 2 hours" color="#FF9F0A" icon="⏰" items={inNext2h} emptyMsg="Nothing coming up in the next 2 hours"/>
+      </div>
+    </div>
+  );
+}
+
 function RefBoardView({tasks,buckets,boardId,onAdd,onEdit,readOnly}){
   const refTasks=[...tasks.filter(t=>t.isRef)].sort((a,b)=>(b.manualOrder||0)-(a.manualOrder||0));
   const [draft,setDraft]=useState(""),draftRef=useRef();
@@ -2636,7 +2775,7 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
 }
 
 function Sidebar({viewMode,onView,onClose,onBack,onSettings,onDisplay,onStats,onBuckets,onActions,onBrands,onPersons,board}){
-  const VIEWS=[{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"}];
+  const VIEWS=[{id:"dash",icon:"◈",label:"Dashboard"},{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"},{id:"taba",icon:"◉",label:"Tabata"}];
   const row=(icon,label,onClick,active)=>(
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 18px",border:"none",background:active?"#161616":"transparent",color:active?TEXT:MUTED,fontFamily:"inherit",fontSize:13,fontWeight:active?700:400,cursor:"pointer",textAlign:"left",borderRadius:0,transition:"background .1s"}}
       onMouseEnter={e=>{if(!active)e.currentTarget.style.background="#111";}}
@@ -2682,9 +2821,10 @@ function MainApp({user,board,onBack,onSignOut}){
   const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
   const [brands,setBrands]=useState([]),[showBrands,setShowBrands]=useState(false);
   const [persons,setPersons]=useState([]),[showPersons,setShowPersons]=useState(false);
-  const [editing,setEditing]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
+  const [editing,setEditing]=useState(null),[editingRef,setEditingRef]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
   const [activeTab,setActiveTab]=useState("all"),[viewMode,setViewMode]=useState("day"),[draggingId,setDraggingId]=useState(null);
   const [loading,setLoading]=useState(true),[userRole,setUserRole]=useState("editor"),[syncing,setSyncing]=useState(false);
+  const handleEdit=useCallback(t=>{if(t&&t.isRef)setEditingRef(t);else setEditing(t);},[]);
   const [celebratingIds,setCelebratingIds]=useState(new Set());
   const celebratingRef=useRef(new Set()); // tracks IDs mid-celebration to block realtime clobber
   const [showQuickAdd,setShowQuickAdd]=useState(false);
@@ -2884,6 +3024,13 @@ function MainApp({user,board,onBack,onSignOut}){
     if(!error)setTasks(ts=>[...ts,dup]);
     else{console.error("duplicateTask error",error);alert("Duplicate failed.");}
   };
+  const saveRef=async updated=>{
+    setSyncing(true);
+    const{error}=await db.from("tasks").upsert(t2db(updated,board.id));
+    setSyncing(false);
+    if(!error)setTasks(ts=>ts.map(t=>t.id===updated.id?updated:t));
+    else alert("Save failed.");
+  };
   const checkTask=async id=>{
     const ct=tasks.find(t=>t.id===id);
     if(!ct)return;
@@ -3036,12 +3183,7 @@ function MainApp({user,board,onBack,onSignOut}){
             <DayFilterDropdown value={dayFilter} onChange={setDayFilter}/>
             {/* Bucket dropdown */}
             <BucketDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}/>
-            {/* Stats pill */}
-            <button onClick={()=>setShowStats(true)} style={{display:"flex",alignItems:"center",gap:0,background:"#111",border:`1px solid ${BORDER}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",fontFamily:"inherit",height:32}}>
-              {oCt>0&&<><span style={{color:"#FF453A",fontWeight:700,fontSize:11}}>{oCt}</span><span style={{color:"#333",fontSize:10,margin:"0 4px"}}>|</span></>}
-              {tCt>0&&<><span style={{color:LIME,fontWeight:700,fontSize:11}}>{tCt}</span><span style={{color:"#333",fontSize:10,margin:"0 4px"}}>|</span></>}
-              <span style={{color:"#555",fontSize:11}}>{tasks.length}</span>
-            </button>
+
           </div>
         </div>
       </div>
@@ -3069,8 +3211,9 @@ function MainApp({user,board,onBack,onSignOut}){
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
       {viewMode==="taba"&&<TabataView tasks={tasks} onCheck={checkTask} onEdit={setEditing} celebratingIds={celebratingIds}/>}
       {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
-      {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
-      {viewMode==="ref"&&<RefBoardView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={setEditing} readOnly={readOnly}/>}
+      {viewMode==="dash"&&<DashboardView tasks={tasks} buckets={buckets} onEdit={handleEdit} onCheck={checkTask} celebratingIds={celebratingIds} readOnly={readOnly}/>}
+      {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={handleEdit} readOnly={readOnly}/>}
+      {viewMode==="ref"&&<RefBoardView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={handleEdit} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
         <QuickAddBar boardId={board.id} onAdd={addTask} onOpenModal={()=>setShowQuickAdd(true)} readOnly={readOnly}/>
         <DurationView tasks={vis} buckets={buckets} actions={actions} brands={brands} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id}/>
@@ -3109,7 +3252,8 @@ function MainApp({user,board,onBack,onSignOut}){
         />
       )}
       {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} persons={persons} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} onDuplicate={duplicateTask} readOnly={readOnly}/>}
-      {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
+      {editingRef&&<RefCardModal task={editingRef} onSave={saveRef} onClose={()=>setEditingRef(null)} onMore={t=>{setEditingRef(null);setEditing(t);}} onDelete={id=>{delTask(id);setEditingRef(null);}} readOnly={readOnly}/>}
+      {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setShowSearch(false);handleEdit(t);}} onClose={()=>setShowSearch(false)}/>}
       {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
