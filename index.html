@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.32</title>
+<title>DayCrush v2.33</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -132,9 +132,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',person:r.person||'',subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,person:t.person||null,keep_link:t.keepLink||null});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',person:'',subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
 const taskDaysSinceDone=t=>{
   if(!t.completionLog||!t.completionLog.length)return null;
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
@@ -523,8 +523,8 @@ function BucketMgr({buckets,onSave,onClose}){
       <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
         {topLevel.sort((a,b)=>a.label.localeCompare(b.label)).map(b=>(
           <div key={b.id}>
-            <BucketRow b={b} indent={false}/>
-            {list.filter(ch=>ch.parentId===b.id).sort((a,z)=>a.label.localeCompare(z.label)).map(ch=><BucketRow key={ch.id} b={ch} indent={true}/>)}
+            {BucketRow({b,indent:false})}
+            {list.filter(ch=>ch.parentId===b.id).sort((a,z)=>a.label.localeCompare(z.label)).map(ch=><React.Fragment key={ch.id}>{BucketRow({b:ch,indent:true})}</React.Fragment>)}
           </div>
         ))}
         {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No buckets yet</div>}
@@ -544,6 +544,53 @@ function BucketMgr({buckets,onSave,onClose}){
   );
 }
 
+
+function PersonMgrView({persons,onSave,onClose}){
+  const [list,setList]=useState((persons||[]).map(a=>({...a}))),[nw,setNw]=useState({emoji:"👤",label:""});
+  const [confirmDel,setConfirmDel]=useState(null);
+  const upd=(id,k,v)=>setList(ls=>ls.map(a=>a.id===id?{...a,[k]:v}:a));
+  const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"👤",label:""});};
+  const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setConfirmDel(null);};
+  return(
+    <div style={{position:"fixed",inset:0,background:"#000",zIndex:400,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"16px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:16}}>👤 Person Manager</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
+        {list.map(a=>(
+          <div key={a.id} style={{marginBottom:6}}>
+            <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
+              <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+              <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+              {confirmDel===a.id?(
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
+                  <button onClick={()=>setConfirmDel(null)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>No</button>
+                  <button onClick={()=>del(a.id)} style={{padding:"4px 9px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>Yes</button>
+                </div>
+              ):(
+                <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:15,padding:"2px 7px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No people yet</div>}
+      </div>
+      <div style={{padding:"0 18px 12px",flexShrink:0,borderTop:`1px solid ${BORDER}`}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0 12px"}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New person…" style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontWeight:800,fontSize:13,color:"#000",fontFamily:"inherit"}}>+</button>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:9,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Cancel</button>
+          <button onClick={()=>onSave(list)} style={{flex:2,padding:"11px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:14}}>Save People</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BrandMgrView({brands,onSave,onClose}){
   const [list,setList]=useState((brands||[]).map(a=>({...a}))),[nw,setNw]=useState({emoji:"🏷",label:""});
@@ -718,7 +765,7 @@ function DisplayMdl({settings,onChange,onClose}){
   );
 }
 
-function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
+function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,onPersons,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
   const tog=k=>onChange({...settings,[k]:!settings[k]});
@@ -754,7 +801,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,o
           {(()=>{
             const btn=(label,onClick,col)=>(<button onClick={onClick} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"9px 8px",borderRadius:8,border:`1px solid ${col?col+"44":BORDER}`,background:col?"#0a0a0a":CARD_BG,cursor:"pointer",color:col||TEXT,fontSize:11,fontFamily:"inherit",fontWeight:col?700:400}}>{label}</button>);
             return(<>
-              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}{btn("🏷 Brands",()=>{onBrands&&onBrands();onClose();})}</div>}
+              {(userRole==="owner"||userRole==="editor")&&<div style={{display:"flex",gap:6}}>{btn("📦 Buckets",()=>{onBuckets();onClose();})}{btn("⚡ Actions",()=>{onActions();onClose();})}{btn("🏷 Brands",()=>{onBrands&&onBrands();onClose();})}{btn("👤 People",()=>{onPersons&&onPersons();onClose();})}</div>}
               <div style={{display:"flex",gap:6}}>{btn("👥 Members",()=>{onMembers();onClose();})}{btn("📋 Log",()=>{onShowLog();onClose();})}</div>
               <div style={{display:"flex",gap:6}}>{btn("📤 Tasks",()=>onExportTasks())}{btn("📤 Log",()=>onExportLog())}</div>
               <div style={{display:"flex",gap:6}}>{btn("⚡ Board Sort",()=>{onBoardSort();onClose();},"#5E5CE6")}{btn("⟳ Clean Sort",()=>{onCleanSort();onClose();},"#4ECDC4")}</div>
@@ -834,8 +881,8 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
   );
 }
 
-function EditMdl({task,tasks,buckets,actions,brands,onSave,onClose,onDelete,readOnly}){
-  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",brand:task.brand||"",gameday:task.gameday||"",subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
+function EditMdl({task,tasks,buckets,actions,brands,persons,onSave,onClose,onDelete,readOnly}){
+  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",brand:task.brand||"",gameday:task.gameday||"",person:task.person||"",subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -1010,8 +1057,15 @@ function EditMdl({task,tasks,buckets,actions,brands,onSave,onClose,onDelete,read
             </div>
           </div>
           <div>
-            <label style={bLbl}>Assigned To</label>
+            <label style={bLbl}>Assigned To (free text)</label>
             <input value={f.who||""} onChange={e=>set("who",e.target.value)} disabled={readOnly} placeholder="M, Matt, Kels…" style={bInp} onFocus={FL} onBlur={FB}/>
+          </div>
+          <div>
+            <label style={bLbl}>Person</label>
+            <select value={f.person||""} onChange={e=>set("person",e.target.value)} disabled={readOnly} style={{...selS,marginBottom:12}}>
+              <option value="">None</option>
+              {(persons||[]).map(p=><option key={p.id} value={p.label}>{p.emoji} {p.label}</option>)}
+            </select>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
             <div>
@@ -1139,6 +1193,7 @@ function TaskCard({task,buckets,onEdit,onDelete,onCheck,showBucket,onDragStart,o
           </div>}
           <div style={{flex:1,minWidth:0}} onClick={()=>!celebrating_&&onEdit(task)}>
             {(()=>{const titleCol=(celebrating_||isDone)?"#30D158":(task.priority==="high"&&!celebrating_&&!isDone)?"#FF453A":cardText||TEXT;return(<div style={{fontSize:13,color:titleCol,lineHeight:1.4,wordBreak:"break-word",textDecoration:(celebrating_||isDone)?"line-through":"none"}}>{task.title||<span style={{fontStyle:"italic",color:"#444"}}>Untitled</span>}</div>);})()}
+            {task.subTitle&&!celebrating_&&!isDone&&<div style={{fontSize:11,color:MUTED,lineHeight:1.3,marginTop:1,wordBreak:"break-word"}}>{task.subTitle}</div>}
           </div>
           <div style={{flexShrink:0,display:"flex",flexDirection:"row",alignItems:"flex-start",gap:4}}>
             {celebrating_&&<span style={{fontSize:12,color:"#30D158",fontWeight:700}}>DONE! ✅</span>}
@@ -1607,7 +1662,7 @@ function TabataView({tasks,onCheck,onEdit,celebratingIds}){
   const [running,setRunning]=useState(false);
   const tickRef=useRef(null);
   // Task mode state
-  const inProgressTasks=useMemo(()=>(tasks||[]).filter(t=>t.status==="do"&&!t.done).sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0)),[tasks]);
+  const inProgressTasks=useMemo(()=>(tasks||[]).filter(t=>t.status==="inprogress"&&!t.done).sort((a,b)=>(a.manualOrder||0)-(b.manualOrder||0)),[tasks]);
   const [taskIdx,setTaskIdx]=useState(0);
   const [skipped,setSkipped]=useState(new Set());
   const currentTask=mode==="tasks"?inProgressTasks.filter((_,i)=>!skipped.has(i))[taskIdx]||null:null;
@@ -2491,10 +2546,12 @@ function MainApp({user,board,onBack,onSignOut}){
   const [tasks,setTasks]=useState([]),[buckets,setBuckets]=useState([]),[settings,setSettings]=useState(DEF_SETTINGS);
   const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
   const [brands,setBrands]=useState([]),[showBrands,setShowBrands]=useState(false);
+  const [persons,setPersons]=useState([]),[showPersons,setShowPersons]=useState(false);
   const [editing,setEditing]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
   const [activeTab,setActiveTab]=useState("all"),[viewMode,setViewMode]=useState("day"),[draggingId,setDraggingId]=useState(null);
   const [loading,setLoading]=useState(true),[userRole,setUserRole]=useState("editor"),[syncing,setSyncing]=useState(false);
   const [celebratingIds,setCelebratingIds]=useState(new Set());
+  const celebratingRef=useRef(new Set()); // tracks IDs mid-celebration to block realtime clobber
   const [showQuickAdd,setShowQuickAdd]=useState(false);
   const [showLog,setShowLog]=useState(false);
   const [showInbox,setShowInbox]=useState(false);
@@ -2560,12 +2617,13 @@ function MainApp({user,board,onBack,onSignOut}){
         setSettings(s);setViewMode(s.defaultView||"day");setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));
         if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
         if(sr.data.brands_json){try{setBrands(JSON.parse(sr.data.brands_json));}catch{}}
+        if(sr.data.persons_json){try{setPersons(JSON.parse(sr.data.persons_json));}catch{}}
       }
       setLoading(false);
       subRef.current=sub=db.channel(`board-${board.id}`)
         .on("postgres_changes",{event:"*",schema:"public",table:"tasks",filter:`board_id=eq.${board.id}`},({eventType,new:n,old:o})=>{
           if(eventType==="INSERT")setTasks(ts=>[...ts.filter(t=>t.id!==n.id),dbToTask(n)]);
-          if(eventType==="UPDATE")setTasks(ts=>ts.map(t=>t.id===n.id?dbToTask(n):t));
+          if(eventType==="UPDATE"){if(!celebratingRef.current.has(n.id))setTasks(ts=>ts.map(t=>t.id===n.id?dbToTask(n):t));}
           if(eventType==="DELETE")setTasks(ts=>ts.filter(t=>t.id!==o.id));
         })
         .on("postgres_changes",{event:"*",schema:"public",table:"buckets",filter:`board_id=eq.${board.id}`},()=>{
@@ -2698,15 +2756,17 @@ function MainApp({user,board,onBack,onSignOut}){
     const e={id:genId(),doneAt:new Date().toISOString(),note:""};
     appendLog({type:"complete",title:ct.title||"?"},true);
     if(!hasFreq){
-      // One-off: celebrate then mark done permanently in place (no move)
+      // One-off: mark done in state immediately, celebrate, then persist to DB
+      const u={...ct,done:true,completionLog:[...(ct.completionLog||[]),e]};
+      setTasks(ts=>ts.map(t=>t.id===id?u:t)); // set done immediately so it sticks
+      celebratingRef.current.add(id);
       setCelebratingIds(s=>{const n=new Set(s);n.add(id);return n;});
       setTimeout(async()=>{
-        const u={...ct,done:true,completionLog:[...(ct.completionLog||[]),e]};
         setSyncing(true);
         const{error}=await db.from("tasks").upsert(t2db(u,board.id));
         setSyncing(false);
-        if(!error){setTasks(ts=>ts.map(t=>t.id===id?u:t));}
-        else{console.error("checkTask DB error",error);alert("Save failed – please try again.");}
+        if(error){console.error("checkTask DB error",error);alert("Save failed – please try again.");}
+        celebratingRef.current.delete(id);
         setCelebratingIds(s=>{const n=new Set(s);n.delete(id);return n;});
       },2500);
     } else {
@@ -2738,14 +2798,14 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
-  const saveBrands=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setBrands(sorted);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
+  const savePersons=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setPersons(sorted);setShowPersons(false);await db.from("board_settings").upsert({board_id:board.id,persons_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveBrands=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setBrands(sorted);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
     setActions(list);setShowActions(false);
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
   const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions),brands_json:JSON.stringify(brands)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions),brands_json:JSON.stringify(brands),persons_json:JSON.stringify(persons)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -2841,6 +2901,11 @@ function MainApp({user,board,onBack,onSignOut}){
             <Column key={col.id} col={col} boardId={board.id} buckets={buckets} activeTab={activeTab} tasks={vis.filter(t=>t.status===col.id)} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} onAddTask={addTask} readOnly={readOnly} draggingId={draggingId} celebratingIds={celebratingIds} onDragStart={handleDragStart} onDragOver={()=>{}} onDrop={handleDrop} onDropCol={handleDropCol}/>
           ))}
         </div>
+        {!readOnly&&<div style={{padding:"8px 16px",borderTop:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",justifyContent:"flex-end"}}>
+          <button onClick={boardSort} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:8,border:"1px solid #5E5CE644",background:"#0a0a1a",color:"#5E5CE6",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",letterSpacing:.3}}>
+            ⚡ SUPER SORT
+          </button>
+        </div>}
         </div>
       )}
 
@@ -2896,9 +2961,9 @@ function MainApp({user,board,onBack,onSignOut}){
           onClose={()=>setShowQuickAdd(false)}
         />
       )}
-      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
+      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} persons={persons} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setEditing(t);}} onClose={()=>setShowSearch(false)}/>}
-      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
+      {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
         onExportTasks={()=>{
           const lines=tasks.map(t=>{const bkt=buckets.find(b=>b.id===t.bucketId);return[t.title||"Untitled",`Status: ${COLS.find(c=>c.id===t.status)?.label||t.status}`,t.priority&&t.priority!=="normal"?`Priority: ${t.priority}`:"",bkt?`Bucket: ${bkt.emoji} ${bkt.label}`:"",t.action?`Action: ${t.action}`:"",t.dueDate?`Due: ${t.dueDate}`:"",t.frequency?`Freq: ${t.frequency}`:"",t.notes?`Notes: ${t.notes}`:""].filter(Boolean).join(" | ");});
           const blob=new Blob([lines.join("\n")],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daycrush-tasks-${board.name.replace(/[^a-z0-9]/gi,"_")}-${new Date().toISOString().slice(0,10)}.txt`;a.click();
@@ -2915,6 +2980,7 @@ function MainApp({user,board,onBack,onSignOut}){
 
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
       {showBrands&&<BrandMgrView brands={brands} onSave={saveBrands} onClose={()=>setShowBrands(false)}/>}
+      {showPersons&&<PersonMgrView persons={persons} onSave={savePersons} onClose={()=>setShowPersons(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
       {showMembers&&<MembersModal board={board} userRole={userRole} currentUser={user} onClose={()=>setShowMembers(false)}/>}
     </div>
