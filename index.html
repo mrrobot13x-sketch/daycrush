@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.41</title>
+<title>DayCrush v2.42</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -940,6 +940,66 @@ function DisplayMdl({settings,onChange,onClose}){
   );
 }
 
+function AdminSection(){
+  const [perms,setPerms]=useState([]);
+  const [passcode,setPasscode]=useState("");
+  const [adminPasscode,setAdminPasscode]=useState("");
+  const [newEmail,setNewEmail]=useState("");
+  const [newRole,setNewRole]=useState("editor");
+  const [saved,setSaved]=useState(false);
+  useEffect(()=>{
+    try{const d=JSON.parse(localStorage.getItem("dc_admin_cfg")||"{}");setPerms(d.perms||[]);setPasscode(d.passcode||"");setAdminPasscode(d.adminPasscode||"");}catch{}
+  },[]);
+  const save=()=>{
+    try{localStorage.setItem("dc_admin_cfg",JSON.stringify({perms,passcode,adminPasscode}));}catch{}
+    setSaved(true);setTimeout(()=>setSaved(false),1800);
+  };
+  const addPerm=()=>{const e=newEmail.trim().toLowerCase();if(!e||perms.find(p=>p.email===e))return;setPerms(prev=>[...prev,{email:e,role:newRole}]);setNewEmail("");};
+  const removePerm=email=>setPerms(prev=>prev.filter(p=>p.email!==email));
+  const changePermRole=(email,role)=>setPerms(prev=>prev.map(p=>p.email===email?{...p,role}:p));
+  const rc=r=>r==="owner"?LIME:r==="admin"?"#FF9F0A":r==="editor"?"#0A84FF":MUTED;
+  return(
+    <div style={{paddingBottom:8}}>
+      <div style={{fontSize:10,color:MUTED,lineHeight:1.5,marginBottom:12,padding:"8px 10px",background:"#0a0a0a",borderRadius:7,border:`1px solid ${BORDER}`}}>
+        Passcodes and email overrides are stored locally on this device. Share the admin passcode only with admins.
+      </div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:.8,textTransform:"uppercase",marginBottom:5}}>User Passcode</div>
+        <input value={passcode} onChange={e=>setPasscode(e.target.value)} placeholder="e.g. daycrush2025" style={{width:"100%",padding:"8px 10px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box",marginBottom:4}} onFocus={FL} onBlur={FB}/>
+        <div style={{fontSize:9,color:"#333"}}>Anyone with this can open and use the app</div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#FF9F0A",letterSpacing:.8,textTransform:"uppercase",marginBottom:5}}>Admin Passcode</div>
+        <input value={adminPasscode} onChange={e=>setAdminPasscode(e.target.value)} placeholder="e.g. admin2025" style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1px solid #FF9F0A44",background:"#0f0a00",color:TEXT,fontSize:13,fontFamily:"inherit",outline:"none",boxSizing:"border-box",marginBottom:4}} onFocus={FL} onBlur={FB}/>
+        <div style={{fontSize:9,color:"#333"}}>Anyone with this gets owner-level access to Admin settings</div>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:.8,textTransform:"uppercase",marginBottom:6}}>Email Permission Overrides</div>
+        {perms.length===0&&<div style={{fontSize:11,color:"#2a2a2a",fontStyle:"italic",marginBottom:7}}>No overrides set</div>}
+        {perms.map(p=>(
+          <div key={p.email} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",background:"#0a0a0a",borderRadius:7,marginBottom:5,border:`1px solid ${BORDER}`}}>
+            <div style={{flex:1,fontSize:11,color:"#444",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.email}</div>
+            <select value={p.role} onChange={e=>changePermRole(p.email,e.target.value)} style={{padding:"3px 5px",borderRadius:5,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:rc(p.role),fontSize:10,fontFamily:"inherit",cursor:"pointer",outline:"none"}}>
+              <option value="viewer">Viewer</option><option value="editor">Editor</option><option value="admin">Admin</option><option value="owner">Owner</option>
+            </select>
+            <button onClick={()=>removePerm(p.email)} style={{background:"none",border:"none",color:"#2a2a2a",cursor:"pointer",fontSize:13,lineHeight:1,padding:"0 2px",flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#2a2a2a"}>✕</button>
+          </div>
+        ))}
+        <div style={{display:"flex",gap:5,marginTop:6}}>
+          <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addPerm()} placeholder="email@example.com" style={{flex:1,padding:"7px 9px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",outline:"none"}} onFocus={FL} onBlur={FB}/>
+          <select value={newRole} onChange={e=>setNewRole(e.target.value)} style={{padding:"7px 5px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:TEXT,fontSize:11,fontFamily:"inherit",cursor:"pointer",outline:"none"}}>
+            <option value="viewer">Viewer</option><option value="editor">Editor</option><option value="admin">Admin</option>
+          </select>
+          <button onClick={addPerm} style={{padding:"7px 11px",borderRadius:7,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontSize:11,fontFamily:"inherit",flexShrink:0}}>Add</button>
+        </div>
+      </div>
+      <button onClick={save} style={{width:"100%",padding:"9px",borderRadius:8,border:`1px solid ${saved?"#30D15855":"transparent"}`,background:saved?"#0a140a":LIME,color:saved?"#30D158":"#000",fontWeight:700,fontSize:12,fontFamily:"inherit",cursor:"pointer",transition:"all .3s"}}>
+        {saved?"✓ Saved":"Save Admin Config"}
+      </button>
+    </div>
+  );
+}
+
 function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,onPersons,onClose,boardName,userRole,onCleanSort,onShowLog,onExportTasks,onExportLog,onBoardSort,onSnoozeOverdue,onTabata,onSync,syncing}){
   const {cardBg:sBg,border:sBo,text:sTx,muted:sMu,inp:sInp}=useTheme();
   const selSt={padding:"5px 8px",borderRadius:7,border:`1px solid ${sBo}`,background:sInp,color:sTx,fontSize:12,fontFamily:"inherit",cursor:"pointer",outline:"none"};
@@ -985,6 +1045,12 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,o
             </>);
           })()}
         </div>
+        {(userRole==="owner"||userRole==="admin")&&(
+          <>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>🔐 Admin</div>
+            <AdminSection/>
+          </>
+        )}
       </div>
       <div style={{padding:"14px 18px 18px",display:"flex",justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`,marginTop:14}}><button onClick={onClose} style={{padding:"7px 18px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:12}}>Done</button></div>
     </Modal>
@@ -2750,35 +2816,37 @@ function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
           </div>
         </div>
         <Section title="Overdue" color="#FF453A" icon="⚠" items={overdue} emptyMsg="No overdue tasks — great!" showEmpty={false}/>
-        {missedToday.length>0&&<Section title="Should've Done Earlier Today" color="#FF6B6B" icon="⏱" items={missedToday} emptyMsg="" showEmpty={false}/>}
+        {missedToday.length>0&&<Section title="From Earlier Today" color="#FF6B6B" icon="⏱" items={missedToday} emptyMsg="" showEmpty={false}/>}
         <Section title="Do Now" subtitle="next 2 hours + in progress" color="#FF9F0A" icon="⏰" items={doNow} emptyMsg="Nothing urgent in the next 2 hours" showEmpty={true}/>
         {doSoon.length>0&&<Section title="Do In A Few Hours" subtitle="2 – 6 hours" color="#5E5CE6" icon="◷" items={doSoon} emptyMsg="" showEmpty={false}/>}
         {laterToday.length>0&&(
-          <div style={{marginTop:8,paddingTop:16,borderTop:`1px solid #1a1a1a`}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-              <span style={{fontSize:11,fontWeight:700,color:"#2a2a2a",letterSpacing:.8,textTransform:"uppercase"}}>Later Today</span>
-              <div style={{flex:1,height:1,background:"#151515"}}/>
-              <span style={{fontSize:10,color:"#2a2a2a",background:"#111",padding:"1px 6px",borderRadius:99}}>{laterToday.length}</span>
+          <div style={{marginTop:10,paddingTop:14,borderTop:`1px solid #141414`}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+              <span style={{fontSize:10,fontWeight:700,color:"#333",letterSpacing:.8,textTransform:"uppercase"}}>Later Today</span>
+              <div style={{flex:1,height:1,background:"#141414"}}/>
+              <span style={{fontSize:9,color:"#2a2a2a",background:"#0d0d0d",padding:"1px 6px",borderRadius:99}}>{laterToday.length}</span>
             </div>
-            {laterToday.map(t=>{
-              const bkt=buckets.find(b=>b.id===t.bucketId);
-              const isDone=t.done||celebratingIds.has(t.id);
-              return(
-                <div key={t.id} onClick={()=>onEdit(t)}
-                  style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,marginBottom:4,background:"#0a0a0a",border:"1px solid #111",cursor:"pointer",opacity:isDone?.5:.55,transition:"opacity .15s"}}
-                  onMouseEnter={e=>e.currentTarget.style.opacity=isDone?.5:".8"}
-                  onMouseLeave={e=>e.currentTarget.style.opacity=isDone?.5:".55"}>
-                  {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:14,height:14,borderRadius:3,border:"1.5px solid #333",background:isDone?"#30D158":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                    {isDone&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
-                  </div>}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,color:isDone?"#30D158":"#444",textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
-                    {bkt&&<span style={{fontSize:9,color:"#2a2a2a"}}>{bkt.emoji} {bkt.label}</span>}
+            <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:6,scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginRight:-16,paddingRight:16}}>
+              {laterToday.map(t=>{
+                const bkt=buckets.find(b=>b.id===t.bucketId);
+                const isDone=t.done||celebratingIds.has(t.id);
+                return(
+                  <div key={t.id} onClick={()=>onEdit(t)}
+                    style={{flexShrink:0,display:"flex",flexDirection:"column",justifyContent:"space-between",padding:"8px 10px",borderRadius:8,background:"#0a0a0a",border:"1px solid #141414",cursor:"pointer",minWidth:120,maxWidth:170,opacity:isDone?.5:.65,transition:"opacity .2s,border-color .2s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.borderColor="#222";}}
+                    onMouseLeave={e=>{e.currentTarget.style.opacity=isDone?.5:".65";e.currentTarget.style.borderColor="#141414";}}>
+                    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:5,marginBottom:5}}>
+                      {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:12,height:12,borderRadius:2,border:`1.5px solid ${isDone?"#30D158":"#2a2a2a"}`,background:isDone?"#30D158":"transparent",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                        {isDone&&<span style={{color:"#000",fontSize:6,fontWeight:900,lineHeight:1}}>✓</span>}
+                      </div>}
+                      {t.time&&<span style={{fontSize:9,fontWeight:700,color:"#333",flexShrink:0,marginLeft:"auto"}}>{fmtTime(t.time)}</span>}
+                    </div>
+                    <div style={{fontSize:11,color:isDone?"#30D158":"#3a3a3a",textDecoration:isDone?"line-through":"none",lineHeight:1.35,wordBreak:"break-word"}}>{t.title||"Untitled"}</div>
+                    {bkt&&<div style={{fontSize:9,color:"#252525",marginTop:5}}>{bkt.emoji} {bkt.label}</div>}
                   </div>
-                  {t.time&&<div style={{fontSize:12,fontWeight:700,color:"#2a2a2a",flexShrink:0}}>{fmtTime(t.time)}</div>}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
