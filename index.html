@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.40</title>
+<title>DayCrush v2.41</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -20,6 +20,8 @@ html,body,#root{height:100%;background:#000;color:#e8e8e8;font-family:-apple-sys
 ::-webkit-scrollbar-track{background:transparent}
 select option{background:#1a1a1a;color:#e8e8e8}
 textarea,input,select{color-scheme:dark}
+/* iOS zoom prevention: font-size must be >= 16px on focused inputs */
+input,textarea,select{font-size:16px!important}
 
 .tab-bar{display:flex;align-items:flex-end;gap:1px;padding:0 12px;overflow-x:auto;scrollbar-width:none;background:#000}
 .tab-bar::-webkit-scrollbar{display:none}
@@ -949,7 +951,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,o
     </div>
   );
   const sec=label=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>{label}</div>);
-  const VIEWS=[{id:"dash",label:"Dashboard ◈"},{id:"inbox",label:"Inbox ⊟"},{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"health",label:"Health ⬡"},{id:"monthly",label:"Monthly+ ◷"}];
+  const VIEWS=[{id:"dash",label:"Dashboard ◈"},{id:"onesies",label:"Onesies ①"},{id:"inbox",label:"Inbox ⊟"},{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"health",label:"Health ⬡"},{id:"monthly",label:"Monthly+ ◷"}];
   return(
     <Modal onClose={onClose} maxWidth={360}>
       <div style={{padding:"18px 18px 4px"}}>
@@ -2599,6 +2601,53 @@ function MonthlyView({tasks,buckets,onEdit,celebratingIds}){
   );
 }
 
+function OnesiesView({tasks,buckets,onEdit,onCheck,onDelete,celebratingIds,readOnly,onAddTask,boardId}){
+  const [adding,setAdding]=useState(false);
+  const oneOffs=tasks.filter(t=>!t.isRef&&!(t.frequency&&t.frequency.trim()));
+  const byTime=(a,b)=>{const at=a.time?t2m(a.time):9999,bt=b.time?t2m(b.time):9999;return at-bt||a.title.localeCompare(b.title);};
+  const overdue=[...oneOffs.filter(t=>t.dueDate&&daysDiff(t.dueDate)<0)].sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const today=[...oneOffs.filter(t=>t.dueDate&&daysDiff(t.dueDate)===0)].sort(byTime);
+  const soon=[...oneOffs.filter(t=>t.dueDate&&daysDiff(t.dueDate)>0)].sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||byTime(a,b));
+  const noDate=[...oneOffs.filter(t=>!t.dueDate)].sort((a,b)=>a.title.localeCompare(b.title));
+  const total=overdue.length+today.length+soon.length+noDate.length;
+  const Sec=({label,color,items,hideToday})=>items.length===0?null:(
+    <div style={{marginBottom:20}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,paddingLeft:2}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:color,flexShrink:0}}/>
+        <span style={{fontSize:11,fontWeight:700,color,letterSpacing:.8,textTransform:"uppercase"}}>{label}</span>
+        <span style={{fontSize:11,color:MUTED,marginLeft:2}}>{items.length}</span>
+        <div style={{flex:1,height:1,background:color+"22",marginLeft:4}}/>
+      </div>
+      {items.map(t=><TaskCard key={t.id} task={t} buckets={buckets} onEdit={onEdit} onDelete={onDelete} onCheck={onCheck} showBucket={true} listMode={true} readOnly={readOnly} hideToday={hideToday} celebrating={celebratingIds.has(t.id)} onDragStart={()=>{}} onDragOver={()=>{}} onDrop={()=>{}} isDragging={false}/>)}
+    </div>
+  );
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{padding:"10px 16px 8px",borderBottom:`1px solid ${BORDER}`,background:"#000",flexShrink:0,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:12,fontWeight:700,color:"#FF9F0A",letterSpacing:.6,textTransform:"uppercase"}}>① Onesies</span>
+        <span style={{fontSize:11,color:MUTED}}>{total} one-off tasks</span>
+        <div style={{flex:1}}/>
+        <span style={{fontSize:10,color:"#333"}}>no recurring</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 16px",maxWidth:640,margin:"0 auto",width:"100%"}}>
+        {total===0&&<div style={{textAlign:"center",padding:"56px 0",color:MUTED,fontSize:14}}>
+          <div style={{fontSize:32,marginBottom:10}}>①</div>
+          No one-off tasks yet
+        </div>}
+        <Sec label="Overdue" color="#FF453A" items={overdue}/>
+        <Sec label="Due Today" color={LIME} items={today} hideToday={true}/>
+        <Sec label="Due Soon" color="#FF9F0A" items={soon}/>
+        <Sec label="No Date" color="#3a3a3a" items={noDate}/>
+        {!readOnly&&<div style={{marginTop:8}}>
+          {adding
+            ?<InlineAdd colId="do" boardId={boardId} onAdd={t=>{onAddTask(t);setAdding(false);}} onCancel={()=>setAdding(false)}/>
+            :<button onClick={()=>setAdding(true)} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:`1px dashed ${BORDER}`,borderRadius:9,cursor:"pointer",color:MUTED,fontSize:13,fontFamily:"inherit",padding:"9px 14px",width:"100%",justifyContent:"center"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="#444";e.currentTarget.style.color=TEXT;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.color=MUTED;}}>+ Add One-off</button>}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
   const now=etNow();
   const nm=now.getHours()*60+now.getMinutes();
@@ -3262,7 +3311,7 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
 }
 
 function Sidebar({viewMode,onView,onClose,onBack,onSettings,onDisplay,onStats,onBuckets,onActions,onBrands,onPersons,onLabels,onImport,board}){
-  const VIEWS=[{id:"dash",icon:"◈",label:"Dashboard"},{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"monthly",icon:"◷",label:"Monthly+"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"},{id:"taba",icon:"◉",label:"Tabata"}];
+  const VIEWS=[{id:"dash",icon:"◈",label:"Dashboard"},{id:"onesies",icon:"①",label:"Onesies"},{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"monthly",icon:"◷",label:"Monthly+"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"},{id:"taba",icon:"◉",label:"Tabata"}];
   const row=(icon,label,onClick,active)=>(
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 18px",border:"none",background:active?"#161616":"transparent",color:active?TEXT:MUTED,fontFamily:"inherit",fontSize:13,fontWeight:active?700:400,cursor:"pointer",textAlign:"left",borderRadius:0,transition:"background .1s"}}
       onMouseEnter={e=>{if(!active)e.currentTarget.style.background="#111";}}
@@ -3538,10 +3587,15 @@ function MainApp({user,board,onBack,onSignOut}){
     const hasFreq=ct.frequency&&ct.frequency.trim();
     const e={id:genId(),doneAt:new Date().toISOString(),note:""};
     appendLog({type:"complete",title:ct.title||"?"},true);
+    // Helper: cleanly end celebration — state first, then unblock realtime after a tick
+    const endCelebration=()=>{
+      setCelebratingIds(s=>{const n=new Set(s);n.delete(id);return n;});
+      setTimeout(()=>celebratingRef.current.delete(id),60); // defer until after React commit
+    };
     if(!hasFreq){
       // One-off: mark done in state immediately, celebrate, then persist to DB
       const u={...ct,done:true,completionLog:[...(ct.completionLog||[]),e]};
-      setTasks(ts=>ts.map(t=>t.id===id?u:t)); // set done immediately so it sticks
+      setTasks(ts=>ts.map(t=>t.id===id?u:t));
       celebratingRef.current.add(id);
       setCelebratingIds(s=>{const n=new Set(s);n.add(id);return n;});
       setTimeout(async()=>{
@@ -3549,11 +3603,11 @@ function MainApp({user,board,onBack,onSignOut}){
         const{error}=await db.from("tasks").upsert(t2db(u,board.id));
         setSyncing(false);
         if(error){console.error("checkTask DB error",error);alert("Save failed – please try again.");}
-        celebratingRef.current.delete(id);
-        setCelebratingIds(s=>{const n=new Set(s);n.delete(id);return n;});
+        endCelebration();
       },2500);
     } else {
-      // Recurring: celebrate for 5s then advance date
+      // Recurring: block realtime during celebration too
+      celebratingRef.current.add(id);
       setCelebratingIds(s=>{const n=new Set(s);n.add(id);return n;});
       setTimeout(async()=>{
         const nd=nextDue(ct.frequency)||ct.dueDate;
@@ -3563,7 +3617,7 @@ function MainApp({user,board,onBack,onSignOut}){
         setSyncing(false);
         if(!error)setTasks(ts=>ts.map(t=>t.id===id?u:t));
         else{console.error("checkTask DB error",error);alert("Save failed – please try again.");}
-        setCelebratingIds(s=>{const n=new Set(s);n.delete(id);return n;});
+        endCelebration();
       },5000);
     }
   };
@@ -3705,6 +3759,7 @@ function MainApp({user,board,onBack,onSignOut}){
       {viewMode==="taba"&&<TabataView tasks={tasks} onCheck={checkTask} onEdit={setEditing} celebratingIds={celebratingIds}/>}
       {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
       {viewMode==="dash"&&<DashboardView tasks={tasks} buckets={buckets} onEdit={handleEdit} onCheck={checkTask} celebratingIds={celebratingIds} readOnly={readOnly}/>}
+      {viewMode==="onesies"&&<OnesiesView tasks={tasks} buckets={buckets} onEdit={handleEdit} onCheck={checkTask} onDelete={delTask} celebratingIds={celebratingIds} readOnly={readOnly} onAddTask={addTask} boardId={board.id}/>}
       {viewMode==="inbox"&&<InboxView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={handleEdit} readOnly={readOnly}/>}
       {viewMode==="ref"&&<RefBoardView tasks={tasks} buckets={buckets} boardId={board.id} onAdd={addTask} onEdit={handleEdit} readOnly={readOnly}/>}
       {viewMode==="list"&&<div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0}}>
