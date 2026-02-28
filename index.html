@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.37</title>
+<title>DayCrush v2.38</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -132,9 +132,9 @@ const dueLabel=(dd,who,tod)=>{
   if(diff===1)return{text:`${pfx}Do tomorrow`,color:"#FF9F0A",weight:600};
   return{text:`${pfx}Do in ${diff} days`,color:MUTED,weight:400};
 };
-const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',person:r.person||'',isRef:r.is_ref||false,refNoteId:r.ref_note_id||null,subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null});
-const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,person:t.person||null,is_ref:t.isRef||false,ref_note_id:t.refNoteId||null,keep_link:t.keepLink||null});
-const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',person:'',isRef:false,refNoteId:null,subTitle:'',keepLink:'',notifyMins:null,boardId:bid});
+const dbToTask=r=>({id:r.id,title:r.title||"",notes:r.notes||"",status:r.status||"list",priority:r.priority||"normal",bucketId:r.bucket_id||null,dueDate:r.due_date||null,time:r.time?r.time.slice(0,5):"",frequency:r.frequency||"",timeOfDay:r.time_of_day||null,who:r.who||"",duration:r.duration||"",link:r.link||"",coverUrl:r.cover_url||"",attachments:r.attachments||[],manualOrder:Number(r.manual_order)||Date.now(),completionLog:r.completion_log||[],done:r.done||false,eventDate:r.event_date||null,action:r.action||'',brand:r.brand||'',gameday:r.gameday||'',person:r.person||'',isRef:r.is_ref||false,refNoteId:r.ref_note_id||null,subTitle:r.sub_title||'',keepLink:r.keep_link||'',notifyMins:r.notify_mins!=null?r.notify_mins:null,labels:r.labels||[]});
+const t2db=(t,bid)=>({id:t.id,board_id:bid,title:t.title,notes:t.notes,status:t.status,priority:t.priority,bucket_id:t.bucketId||null,due_date:t.dueDate||null,time:t.time||null,frequency:t.frequency,time_of_day:t.timeOfDay||null,who:t.who,duration:t.duration,link:t.link||null,cover_url:t.coverUrl||null,attachments:t.attachments||[],manual_order:t.manualOrder,completion_log:t.completionLog,done:t.done||false,event_date:t.eventDate||null,action:t.action||null,sub_title:t.subTitle||null,brand:t.brand||null,gameday:t.gameday||null,person:t.person||null,is_ref:t.isRef||false,ref_note_id:t.refNoteId||null,keep_link:t.keepLink||null,labels:t.labels||[]});
+const mkTask=(status,bid)=>({id:genId(),title:"",notes:"",status,priority:"normal",bucketId:null,dueDate:todayStr(),time:"",frequency:"",timeOfDay:null,who:"",duration:"",link:"",coverUrl:"",attachments:[],manualOrder:Date.now(),completionLog:[],done:false,eventDate:null,action:'',brand:'',gameday:'',person:'',isRef:false,refNoteId:null,subTitle:'',keepLink:'',notifyMins:null,labels:[],boardId:bid});
 const taskDaysSinceDone=t=>{
   if(!t.completionLog||!t.completionLog.length)return null;
   const last=[...t.completionLog].sort((a,b)=>b.doneAt.localeCompare(a.doneAt))[0];
@@ -439,6 +439,179 @@ function CompLog({log,onChange}){
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ImportModal({boardId,buckets,onImport,onClose}){
+  const [rows,setRows]=useState([]);
+  const [error,setError]=useState("");
+  const [status,setStatus]=useState("idle"); // idle | preview | importing | done
+  const TEMPLATE_HEADERS=["title","notes","status","priority","frequency","dueDate","time","bucket","who","duration","action"];
+  const STATUSES=["list","do","nextup","inprogress"];
+  const PRIORITIES=["normal","low","high","crush"];
+  const downloadTemplate=()=>{
+    const csv=[TEMPLATE_HEADERS.join(","),
+      '"Weekly team meeting","Meet with team","do","normal","monday","","09:00","Work","","60",""',
+      '"Buy groceries","Milk eggs bread","list","normal","","2025-03-15","","Errands","","",""',
+    ].join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="daycrush-import-template.csv";a.click();
+  };
+  const parse=text=>{
+    const lines=text.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length){setError("File is empty");return;}
+    // Detect delimiter
+    const delim=lines[0].includes("\t")?"\t":",";
+    const parseRow=raw=>{
+      const out=[];let cur="",inQ=false;
+      for(let i=0;i<raw.length;i++){
+        const ch=raw[i];
+        if(ch==='"'&&!inQ){inQ=true;}
+        else if(ch==='"'&&inQ&&raw[i+1]==='"'){cur+='"';i++;}
+        else if(ch==='"'&&inQ){inQ=false;}
+        else if(ch===delim&&!inQ){out.push(cur.trim());cur="";}
+        else cur+=ch;
+      }
+      out.push(cur.trim());return out;
+    };
+    const hdrs=parseRow(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,""));
+    const titleIdx=hdrs.findIndex(h=>h==="title");
+    if(titleIdx===-1){setError("No 'title' column found in header row");return;}
+    const idx=h=>hdrs.indexOf(h);
+    const parsed=[];
+    for(let i=1;i<lines.length;i++){
+      const cols=parseRow(lines[i]);
+      const get=h=>{const ix=idx(h);return ix>=0?(cols[ix]||"").trim():"";};
+      const title=get("title");if(!title)continue;
+      const bktLabel=get("bucket").toLowerCase();
+      const bkt=buckets.find(b=>b.label.toLowerCase()===bktLabel||b.emoji===bktLabel)||null;
+      const status=STATUSES.includes(get("status"))?get("status"):"list";
+      const priority=PRIORITIES.includes(get("priority"))?get("priority"):"normal";
+      const t=mkTask(status,boardId);
+      t.title=title;t.notes=get("notes");t.status=status;t.priority=priority;
+      t.frequency=get("frequency");t.dueDate=get("duedate")||get("due")||null;
+      t.time=get("time");t.bucketId=bkt?bkt.id:null;t.who=get("who");
+      t.duration=get("duration");t.action=get("action");
+      // annual freq → 6am default
+      const fp=parseFreq(t.frequency);
+      if(fp.type==="annual"&&!t.time)t.time="06:00";
+      parsed.push(t);
+    }
+    if(!parsed.length){setError("No valid rows found (need at least a 'title' column)");return;}
+    setRows(parsed);setError("");setStatus("preview");
+  };
+  const handleFile=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{try{parse(ev.target.result);}catch(ex){setError("Parse error: "+ex.message);}};
+    reader.readAsText(file);
+  };
+  const handleImport=async()=>{
+    setStatus("importing");
+    await onImport(rows);
+    setStatus("done");
+  };
+  return(
+    <Modal onClose={onClose} maxWidth={520}>
+      <div style={{padding:"18px 18px 4px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{fontWeight:700,fontSize:15}}>📤 Import Tasks</div>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:MUTED}}>✕</button>
+        </div>
+      </div>
+      <div style={{padding:"0 18px",maxHeight:"72vh",overflowY:"auto"}}>
+        {status==="done"?(
+          <div style={{textAlign:"center",padding:"40px 0"}}>
+            <div style={{fontSize:40,marginBottom:12}}>✅</div>
+            <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>{rows.length} tasks imported!</div>
+            <button onClick={onClose} style={{marginTop:16,padding:"10px 28px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:13}}>Done</button>
+          </div>
+        ):status==="importing"?(
+          <div style={{textAlign:"center",padding:"40px 0",color:MUTED,fontSize:14}}>Importing {rows.length} tasks…</div>
+        ):status==="preview"?(
+          <div>
+            <div style={{fontSize:12,color:LIME,fontWeight:600,marginBottom:12}}>✓ {rows.length} tasks ready to import</div>
+            <div style={{maxHeight:300,overflowY:"auto",marginBottom:12}}>
+              {rows.map((t,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderBottom:`1px solid ${BORDER}`,fontSize:12}}>
+                  <span style={{color:TEXT,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</span>
+                  {t.dueDate&&<span style={{color:MUTED,flexShrink:0}}>{t.dueDate}</span>}
+                  {t.frequency&&<span style={{color:"#5E5CE6",flexShrink:0}}>{t.frequency}</span>}
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <button onClick={()=>{setStatus("idle");setRows([]);}} style={{flex:1,padding:"10px",borderRadius:8,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:12}}>← Back</button>
+              <button onClick={handleImport} style={{flex:2,padding:"10px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:13}}>Import {rows.length} Tasks</button>
+            </div>
+          </div>
+        ):(
+          <div style={{paddingBottom:16}}>
+            <div style={{background:"#0a0a0a",borderRadius:10,border:`1px solid ${BORDER}`,padding:"14px 16px",marginBottom:14}}>
+              <div style={{fontWeight:600,fontSize:12,marginBottom:6}}>📋 CSV / TSV Template</div>
+              <div style={{fontSize:11,color:MUTED,marginBottom:10,lineHeight:1.5}}>Download the template, fill it in with your tasks (one per row), then upload it here. Works with Excel, Google Sheets, Numbers, or any CSV editor.</div>
+              <div style={{fontSize:10,color:"#444",fontFamily:"monospace",marginBottom:10,background:"#0d0d0d",padding:"8px",borderRadius:6,overflowX:"auto",whiteSpace:"nowrap"}}>{TEMPLATE_HEADERS.join(" | ")}</div>
+              <button onClick={downloadTemplate} style={{padding:"8px 16px",borderRadius:7,border:`1px solid ${BORDER}`,background:"#1a1a1a",color:TEXT,cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>⬇ Download Template</button>
+            </div>
+            <div style={{marginBottom:8}}>
+              <label style={{display:"block",fontWeight:600,fontSize:12,marginBottom:8,color:MUTED}}>Upload CSV or TSV file:</label>
+              <input type="file" accept=".csv,.tsv,.txt" onChange={handleFile}
+                style={{width:"100%",padding:"10px",borderRadius:8,border:`1px solid ${BORDER}`,background:"#111",color:TEXT,fontSize:12,fontFamily:"inherit",cursor:"pointer",boxSizing:"border-box"}}/>
+            </div>
+            {error&&<div style={{color:"#FF453A",fontSize:12,marginTop:8}}>⚠ {error}</div>}
+            <div style={{marginTop:12,fontSize:11,color:"#333"}}>
+              Columns: title (required), notes, status (list/do/nextup/inprogress), priority (normal/low/high/crush), frequency, dueDate (YYYY-MM-DD), time (HH:MM), bucket (name), who, duration (minutes), action
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function LabelsMgrView({labels,onSave,onClose}){
+  const [list,setList]=useState((labels||[]).map(a=>({...a}))),[nw,setNw]=useState({emoji:"🏷",label:""});
+  const [confirmDel,setConfirmDel]=useState(null);
+  const upd=(id,k,v)=>setList(ls=>ls.map(a=>a.id===id?{...a,[k]:v}:a));
+  const add=()=>{if(!nw.label.trim())return;setList(ls=>[...ls,{...nw,id:genId()}]);setNw({emoji:"🏷",label:""});};
+  const del=id=>{setList(ls=>ls.filter(x=>x.id!==id));setConfirmDel(null);};
+  return(
+    <div style={{position:"fixed",inset:0,background:"#000",zIndex:400,display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"16px 18px",borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <button onClick={onClose} style={{background:"none",border:"none",color:MUTED,fontSize:22,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>‹</button>
+        <span style={{fontWeight:700,fontSize:16}}>🏷 Labels Manager</span>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
+        {list.map(a=>(
+          <div key={a.id} style={{marginBottom:6}}>
+            <div style={{background:CARD_BG,borderRadius:8,border:`1px solid ${BORDER}`,display:"flex",gap:6,alignItems:"center",padding:"9px 11px"}}>
+              <input value={a.emoji||""} onChange={e=>upd(a.id,"emoji",e.target.value)} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+              <input value={a.label} onChange={e=>upd(a.id,"label",e.target.value)} style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+              {confirmDel===a.id?(
+                <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"#FF453A"}}>Delete?</span>
+                  <button onClick={()=>setConfirmDel(null)} style={{padding:"4px 9px",borderRadius:5,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>No</button>
+                  <button onClick={()=>del(a.id)} style={{padding:"4px 9px",borderRadius:5,border:"none",background:"#FF453A",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:700}}>Yes</button>
+                </div>
+              ):(
+                <button onClick={()=>setConfirmDel(a.id)} style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:15,padding:"2px 7px"}} onMouseEnter={e=>e.currentTarget.style.color="#FF453A"} onMouseLeave={e=>e.currentTarget.style.color="#333"}>🗑</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {list.length===0&&<div style={{textAlign:"center",padding:"48px 0",color:MUTED,fontSize:13,fontStyle:"italic"}}>No labels yet</div>}
+      </div>
+      <div style={{padding:"0 18px 12px",flexShrink:0,borderTop:`1px solid ${BORDER}`}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"10px 0 12px"}}>
+          <input value={nw.emoji} onChange={e=>setNw(n=>({...n,emoji:e.target.value}))} style={{width:36,padding:"4px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:16,textAlign:"center",outline:"none",fontFamily:"inherit"}}/>
+          <input value={nw.label} onChange={e=>setNw(n=>({...n,label:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="New label…" style={{flex:1,padding:"7px 10px",borderRadius:6,border:`1px solid ${BORDER}`,background:"#222",color:TEXT,fontSize:13,outline:"none",fontFamily:"inherit"}} onFocus={FL} onBlur={FB}/>
+          <button onClick={add} style={{background:LIME,border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontWeight:800,fontSize:13,color:"#000",fontFamily:"inherit"}}>+</button>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:"11px",borderRadius:9,border:`1px solid ${BORDER}`,background:"transparent",color:MUTED,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Cancel</button>
+          <button onClick={()=>onSave(list)} style={{flex:2,padding:"11px",borderRadius:9,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontFamily:"inherit",fontSize:14}}>Save Labels</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -776,7 +949,7 @@ function SettingsMdl({settings,onChange,onBuckets,onMembers,onActions,onBrands,o
     </div>
   );
   const sec=label=>(<div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:MUTED,textTransform:"uppercase",padding:"14px 0 6px",marginTop:2}}>{label}</div>);
-  const VIEWS=[{id:"inbox",label:"Inbox ⊟"},{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"health",label:"Health ⬡"}];
+  const VIEWS=[{id:"dash",label:"Dashboard ◈"},{id:"inbox",label:"Inbox ⊟"},{id:"cal",label:"Calendar ▦"},{id:"day",label:"Timeline ⏱"},{id:"board",label:"Board ⊞"},{id:"list",label:"List ☰"},{id:"health",label:"Health ⬡"},{id:"monthly",label:"Monthly+ ◷"}];
   return(
     <Modal onClose={onClose} maxWidth={360}>
       <div style={{padding:"18px 18px 4px"}}>
@@ -882,8 +1055,8 @@ function AttachmentsMgr({attachments,readOnly,onChange}){
   );
 }
 
-function EditMdl({task,tasks,buckets,actions,brands,persons,onSave,onClose,onDelete,onDuplicate,onOpenRef,readOnly}){
-  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",brand:task.brand||"",gameday:task.gameday||"",person:task.person||"",refNoteId:task.refNoteId||null,subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
+function EditMdl({task,tasks,buckets,actions,brands,persons,labels,onSave,onClose,onDelete,onDuplicate,onOpenRef,readOnly}){
+  const [f,setF]=useState({...task,completionLog:task.completionLog||[],timeOfDay:task.timeOfDay||null,bucketId:task.bucketId||null,who:task.who||"",duration:task.duration||"",time:task.time||"",link:task.link||"",coverUrl:task.coverUrl||"",attachments:task.attachments||[],priority:task.priority||"normal",eventDate:task.eventDate||"",action:task.action||"",brand:task.brand||"",gameday:task.gameday||"",person:task.person||"",refNoteId:task.refNoteId||null,labels:task.labels||[],subTitle:task.subTitle||"",keepLink:task.keepLink||"",notifyMins:task.notifyMins!=null?task.notifyMins:null});
   const [editingLink,setEditingLink]=useState(false);
   const [showMore,setShowMore]=useState(false);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -1076,6 +1249,19 @@ function EditMdl({task,tasks,buckets,actions,brands,persons,onSave,onClose,onDel
             </select>
             {f.refNoteId&&<div style={{fontSize:10,color:"#5E5CE6",marginTop:-8,marginBottom:12,cursor:"pointer"}} onClick={()=>{const r=(tasks||[]).find(t=>t.id===f.refNoteId);if(r)onOpenRef&&onOpenRef(r);}}>↗ View linked note</div>}
           </div>
+          <div>
+            <label style={bLbl}>Labels</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
+              {(f.labels||[]).map(lid=>{const lb=(labels||[]).find(l=>l.id===lid);return lb?(<span key={lid} style={{display:"flex",alignItems:"center",gap:4,background:"#1a1a2a",border:"1px solid #5E5CE644",borderRadius:99,padding:"3px 9px 3px 7px",fontSize:11,color:"#8E8EF0"}}>
+                {lb.emoji} {lb.label}
+                {!readOnly&&<span onClick={()=>set("labels",(f.labels||[]).filter(x=>x!==lid))} style={{cursor:"pointer",color:MUTED,fontSize:12,lineHeight:1,marginLeft:2}}>×</span>}
+              </span>):null;})}
+            </div>
+            {!readOnly&&<select value="" onChange={e=>{const v=e.target.value;if(v&&!(f.labels||[]).includes(v))set("labels",[...(f.labels||[]),v]);}} style={{...selS,marginBottom:0}}>
+              <option value="">+ Add label…</option>
+              {(labels||[]).filter(l=>!(f.labels||[]).includes(l.id)).map(l=><option key={l.id} value={l.id}>{l.emoji} {l.label}</option>)}
+            </select>}
+          </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
             <div>
               <label style={bLbl}>Brand</label>
@@ -1133,7 +1319,12 @@ function EditMdl({task,tasks,buckets,actions,brands,persons,onSave,onClose,onDel
       </div>
       <div style={{padding:"12px 16px 16px",display:"flex",gap:8,justifyContent:"flex-end",borderTop:`1px solid ${BORDER}`}}>
         <button onClick={onClose} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${BORDER}`,background:CARD_BG,cursor:"pointer",color:MUTED,fontFamily:"inherit",fontSize:12}}>Cancel</button>
-        {!readOnly&&<button onClick={()=>onSave(f)} style={{padding:"8px 22px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>Save</button>}
+        {!readOnly&&<button onClick={()=>{
+  const fp=parseFreq(f.frequency);
+  const finalF={...f};
+  if(fp.type==="annual"&&!finalF.time)finalF.time="06:00";
+  onSave(finalF);
+}} style={{padding:"8px 22px",borderRadius:8,border:"none",background:LIME,color:"#000",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>Save</button>}
       </div>
     </Modal>
   );
@@ -2208,28 +2399,143 @@ function RefCardModal({task,onSave,onClose,onMore,readOnly}){
   );
 }
 
+function MonthlyView({tasks,buckets,onEdit,celebratingIds}){
+  // Big frequency = annual/monthly/every N days where N>20
+  const isBig=t=>{
+    if(!t.frequency)return false;
+    const p=parseFreq(t.frequency);
+    if(p.type==="annual")return true;
+    if(p.type==="years")return true;
+    if(p.type==="months")return true;
+    if(p.type==="month_day")return true;
+    if(p.type==="days"&&p.n>=20)return true;
+    return false;
+  };
+  const filtered=tasks.filter(t=>!t.isRef&&isBig(t));
+  // Sort: tasks with a dueDate first (by date), then no date
+  const sorted=[...filtered].sort((a,b)=>{
+    const ad=a.dueDate||"9999-12-31",bd=b.dueDate||"9999-12-31";
+    return ad.localeCompare(bd);
+  });
+  const today=todayStr();
+  const rows=sorted.map(t=>{
+    const bkt=buckets.find(b=>b.id===t.bucketId);
+    const diff=t.dueDate?daysDiff(t.dueDate):null;
+    const isDone=t.done||celebratingIds.has(t.id);
+    let dateColor=MUTED;
+    if(diff!==null){if(diff<0)dateColor="#FF453A";else if(diff===0)dateColor=LIME;else if(diff<=7)dateColor="#FF9F0A";}
+    const dl=t.dueDate?dueLabel(t.dueDate,t.who,t.timeOfDay):null;
+    const fp=parseFreq(t.frequency);
+    return{t,bkt,diff,isDone,dateColor,dl,fp};
+  });
+  // Group by month
+  const groups=[];
+  rows.forEach(r=>{
+    const key=r.t.dueDate?r.t.dueDate.slice(0,7):"No Date";
+    let grp=groups.find(g=>g.key===key);
+    if(!grp){grp={key,label:key==="No Date"?"No Due Date":new Date(key+"-01T00:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"}),items:[]};groups.push(grp);}
+    grp.items.push(r);
+  });
+  return(
+    <div style={{flex:1,overflowY:"auto",padding:"12px 16px 32px"}}>
+      <div style={{maxWidth:680,margin:"0 auto"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <div style={{flex:1,height:1,background:BORDER}}/>
+          <span style={{fontSize:11,fontWeight:700,color:MUTED,letterSpacing:1,textTransform:"uppercase"}}>◷ MONTHLY+ · {filtered.length} tasks</span>
+          <div style={{flex:1,height:1,background:BORDER}}/>
+        </div>
+        {filtered.length===0&&(
+          <div style={{textAlign:"center",padding:"64px 0",color:MUTED,fontSize:14}}>
+            <div style={{fontSize:36,marginBottom:12}}>◷</div>
+            No monthly/annual tasks yet
+          </div>
+        )}
+        {groups.map(grp=>(
+          <div key={grp.key} style={{marginBottom:24}}>
+            <div style={{fontSize:10,fontWeight:700,color:MUTED,letterSpacing:1.2,textTransform:"uppercase",marginBottom:8,paddingBottom:5,borderBottom:`1px solid ${BORDER}`}}>{grp.label}</div>
+            {grp.items.map(({t,bkt,diff,isDone,dateColor,dl,fp})=>(
+              <div key={t.id} onClick={()=>onEdit(t)}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,marginBottom:5,background:isDone?"#0a120a":"#0e0e0e",border:`1px solid ${isDone?"#30D15833":BORDER}`,cursor:"pointer",transition:"border-color .1s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#333"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor=isDone?"#30D15833":BORDER}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,color:isDone?"#30D158":TEXT,fontWeight:500,textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+                    {bkt&&<span style={{fontSize:10,color:bkt.mainColor||MUTED}}>{bkt.emoji} {bkt.label}</span>}
+                    <span style={{fontSize:10,color:"#5E5CE6"}}>{fp.label}</span>
+                    {t.time&&<span style={{fontSize:10,color:MUTED}}>{fmtTime(t.time)}</span>}
+                  </div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  {dl&&<div style={{fontSize:11,color:dateColor,fontWeight:600}}>{dl.text}</div>}
+                  {t.dueDate&&<div style={{fontSize:10,color:"#444",marginTop:1}}>{new Date(t.dueDate+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
   const now=etNow();
   const nm=now.getHours()*60+now.getMinutes();
   const dateLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  // Overdue: any task with a past date, not done, not ref
+  // Overdue: past date tasks
   const overdue=tasks.filter(t=>!t.isRef&&t.dueDate&&daysDiff(t.dueDate)<0&&!t.done&&!celebratingIds.has(t.id)).sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||""));
-  // Do Now: timed tasks in next 2h OR in-progress one-offs (no time required)
+  // Missed Today: timed tasks from today whose time has already passed
+  const missedToday=tasks.filter(t=>{
+    if(t.isRef||t.done||celebratingIds.has(t.id))return false;
+    if(t.status==="inprogress")return false; // in-progress goes to doNow
+    return t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)<nm;
+  }).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  // Do Now: in-progress one-offs + timed tasks in next 2h
   const doNow=tasks.filter(t=>{
     if(t.isRef||t.done||celebratingIds.has(t.id))return false;
-    // in-progress one-off: treat as "do now"
     if(t.status==="inprogress"&&!(t.frequency&&t.frequency.trim()))return true;
-    // timed today in next 2h
     if(t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)>=nm&&t2m(t.time)<=nm+120)return true;
     return false;
   }).sort((a,b)=>{const at=a.time?t2m(a.time):9999,bt=b.time?t2m(b.time):9999;return at-bt;});
-  // Do In A Few Hours: timed tasks 2-6h from now, today
+  // Do In A Few Hours: 2-6h from now
   const doSoon=tasks.filter(t=>{
     if(t.isRef||t.done||celebratingIds.has(t.id))return false;
-    if(doNow.find(x=>x.id===t.id))return false;
+    if(doNow.find(x=>x.id===t.id)||missedToday.find(x=>x.id===t.id))return false;
     return t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)>nm+120&&t2m(t.time)<=nm+360;
   }).sort((a,b)=>t2m(a.time)-t2m(b.time));
-  const Section=({title,subtitle,color,icon,items,emptyMsg})=>(
+
+  const DashCard=({t,color})=>{
+    const bkt=buckets.find(b=>b.id===t.bucketId);
+    const isDone=t.done||celebratingIds.has(t.id);
+    const isIP=t.status==="inprogress"&&!(t.frequency&&t.frequency.trim());
+    // Fade out a second after celebrating
+    const [visible,setVisible]=useState(true);
+    useEffect(()=>{if(isDone){const timer=setTimeout(()=>setVisible(false),2500);return()=>clearTimeout(timer);}else{setVisible(true);}},[isDone]);
+    if(!visible)return null;
+    return(
+      <div onClick={()=>onEdit(t)}
+        style={{background:isDone?"#0a120a":"#0e0e0e",borderRadius:10,border:`1px solid ${isDone?"#30D15833":color+"33"}`,padding:"12px 14px",marginBottom:6,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"all .4s",opacity:isDone?.6:1}}
+        onMouseEnter={e=>e.currentTarget.style.borderColor=color+"77"}
+        onMouseLeave={e=>e.currentTarget.style.borderColor=isDone?"#30D15833":color+"33"}>
+        {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:18,height:18,borderRadius:5,border:`1.5px solid ${isDone?"#30D158":color}`,background:isDone?"#30D158":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"background .2s"}}>
+          {isDone&&<span style={{color:"#000",fontSize:9,fontWeight:900,lineHeight:1}}>✓</span>}
+        </div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,color:isDone?"#30D158":TEXT,fontWeight:500,lineHeight:1.4,textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+            {isIP&&!t.time&&<span style={{fontSize:10,color:"#5E5CE6",fontWeight:600}}>◉ in progress</span>}
+            {bkt&&<span style={{fontSize:10,color:bkt.mainColor||MUTED}}>{bkt.emoji} {bkt.label}</span>}
+          </div>
+        </div>
+        {t.time&&<div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontSize:17,fontWeight:800,color:isDone?"#30D158":color,letterSpacing:-.3,lineHeight:1}}>{fmtTime(t.time)}</div>
+        </div>}
+      </div>
+    );
+  };
+
+  const Section=({title,subtitle,color,icon,items,emptyMsg,showEmpty})=>(
     <div style={{marginBottom:24}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
         <span style={{fontSize:14}}>{icon}</span>
@@ -2240,37 +2546,14 @@ function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
         <div style={{flex:1,height:1,background:color+"33",marginLeft:4}}/>
         <span style={{fontSize:11,color,fontWeight:700,background:color+"22",padding:"2px 8px",borderRadius:99}}>{items.length}</span>
       </div>
-      {items.length===0?(
+      {items.length===0&&showEmpty&&(
         <div style={{textAlign:"center",padding:"14px 0",color:MUTED,fontSize:12,fontStyle:"italic",background:"#0a0a0a",borderRadius:10,border:`1px solid ${BORDER}`}}>{emptyMsg}</div>
-      ):(
-        items.map(t=>{
-          const bkt=buckets.find(b=>b.id===t.bucketId);
-          const isDone=t.done||celebratingIds.has(t.id);
-          const isIP=t.status==="inprogress"&&!(t.frequency&&t.frequency.trim());
-          return(
-            <div key={t.id} onClick={()=>onEdit(t)}
-              style={{background:isDone?"#0a120a":"#0e0e0e",borderRadius:10,border:`1px solid ${isDone?"#30D15833":color+"33"}`,padding:"11px 14px",marginBottom:6,cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"border-color .1s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor=color+"77"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor=isDone?"#30D15833":color+"33"}>
-              {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${isDone?"#30D158":color}`,background:isDone?"#30D158":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                {isDone&&<span style={{color:"#000",fontSize:8,fontWeight:900,lineHeight:1}}>✓</span>}
-              </div>}
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,color:isDone?"#30D158":TEXT,fontWeight:500,lineHeight:1.4,textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
-                  {isIP&&!t.time&&<span style={{fontSize:10,color:"#5E5CE6",fontWeight:600}}>◉ in progress</span>}
-                  {t.time&&<span style={{fontSize:10,color:color,fontWeight:600}}>{fmtTime(t.time)}</span>}
-                  {t.dueDate&&daysDiff(t.dueDate)<0&&<span style={{fontSize:10,color:"#FF453A88"}}>{t.dueDate}</span>}
-                  {bkt&&<span style={{fontSize:10,color:bkt.mainColor||MUTED}}>{bkt.emoji} {bkt.label}</span>}
-                </div>
-              </div>
-            </div>
-          );
-        })
       )}
+      {items.map(t=><DashCard key={t.id} t={t} color={color}/>)}
     </div>
   );
-  const totalUrgent=overdue.length+doNow.length;
+
+  const totalAll=overdue.length+missedToday.length+doNow.length;
   return(
     <div style={{flex:1,overflowY:"auto",padding:"16px 16px 32px"}}>
       <div style={{maxWidth:600,margin:"0 auto"}}>
@@ -2279,14 +2562,16 @@ function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
           <div style={{fontSize:18,fontWeight:800,color:TEXT,letterSpacing:-.3}}>{dateLbl}</div>
           <div style={{marginTop:8,fontSize:12,color:MUTED,display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
             {overdue.length>0&&<span style={{color:"#FF453A",fontWeight:600}}>⚠ {overdue.length} overdue</span>}
+            {missedToday.length>0&&<span style={{color:"#FF6B6B",fontWeight:600}}>⏱ {missedToday.length} missed today</span>}
             {doNow.length>0&&<span style={{color:"#FF9F0A",fontWeight:600}}>⏰ {doNow.length} do now</span>}
             {doSoon.length>0&&<span style={{color:"#5E5CE6",fontWeight:600}}>◷ {doSoon.length} up soon</span>}
-            {totalUrgent===0&&doSoon.length===0&&<span style={{color:"#30D158",fontWeight:600}}>✓ All clear</span>}
+            {totalAll===0&&doSoon.length===0&&<span style={{color:"#30D158",fontWeight:600}}>✓ All clear</span>}
           </div>
         </div>
-        <Section title="Overdue" color="#FF453A" icon="⚠" items={overdue} emptyMsg="No overdue tasks — great!"/>
-        <Section title="Do Now" subtitle="next 2 hours + in progress" color="#FF9F0A" icon="⏰" items={doNow} emptyMsg="Nothing urgent in the next 2 hours"/>
-        <Section title="Do In A Few Hours" subtitle="2 – 6 hours" color="#5E5CE6" icon="◷" items={doSoon} emptyMsg="Nothing coming up in 2–6 hours"/>
+        <Section title="Overdue" color="#FF453A" icon="⚠" items={overdue} emptyMsg="No overdue tasks — great!" showEmpty={false}/>
+        {missedToday.length>0&&<Section title="Should've Done Earlier Today" color="#FF6B6B" icon="⏱" items={missedToday} emptyMsg="" showEmpty={false}/>}
+        <Section title="Do Now" subtitle="next 2 hours + in progress" color="#FF9F0A" icon="⏰" items={doNow} emptyMsg="Nothing urgent in the next 2 hours" showEmpty={true}/>
+        {doSoon.length>0&&<Section title="Do In A Few Hours" subtitle="2 – 6 hours" color="#5E5CE6" icon="◷" items={doSoon} emptyMsg="" showEmpty={false}/>}
       </div>
     </div>
   );
@@ -2816,8 +3101,8 @@ function QuickAddModal({boardId,buckets,onAdd,onClose}){
   );
 }
 
-function Sidebar({viewMode,onView,onClose,onBack,onSettings,onDisplay,onStats,onBuckets,onActions,onBrands,onPersons,board}){
-  const VIEWS=[{id:"dash",icon:"◈",label:"Dashboard"},{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"},{id:"taba",icon:"◉",label:"Tabata"}];
+function Sidebar({viewMode,onView,onClose,onBack,onSettings,onDisplay,onStats,onBuckets,onActions,onBrands,onPersons,onLabels,onImport,board}){
+  const VIEWS=[{id:"dash",icon:"◈",label:"Dashboard"},{id:"inbox",icon:"⊟",label:"Inbox"},{id:"cal",icon:"▦",label:"Calendar"},{id:"day",icon:"⏱",label:"Timeline"},{id:"board",icon:"⊞",label:"Board"},{id:"list",icon:"☰",label:"List"},{id:"monthly",icon:"◷",label:"Monthly+"},{id:"health",icon:"⬡",label:"Health"},{id:"ref",icon:"⊟",label:"Reference"},{id:"taba",icon:"◉",label:"Tabata"}];
   const row=(icon,label,onClick,active)=>(
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 18px",border:"none",background:active?"#161616":"transparent",color:active?TEXT:MUTED,fontFamily:"inherit",fontSize:13,fontWeight:active?700:400,cursor:"pointer",textAlign:"left",borderRadius:0,transition:"background .1s"}}
       onMouseEnter={e=>{if(!active)e.currentTarget.style.background="#111";}}
@@ -2845,6 +3130,8 @@ function Sidebar({viewMode,onView,onClose,onBack,onSettings,onDisplay,onStats,on
           {row("⚡","Actions",()=>{onActions();onClose();})}
           {row("🏷","Brands",()=>{onBrands();onClose();})}
           {row("👤","People",()=>{onPersons();onClose();})}
+          {row("🏷","Labels",()=>{onLabels();onClose();})}
+          {row("📤","Import Tasks",()=>{onImport();onClose();})}
           {divider()}
           <div style={{fontSize:9,color:MUTED,fontWeight:700,letterSpacing:1.2,padding:"6px 18px 2px",textTransform:"uppercase"}}>More</div>
           {row("⊙","Display & Theme",()=>{onDisplay();onClose();})}
@@ -2862,6 +3149,8 @@ function MainApp({user,board,onBack,onSignOut}){
   const [tasks,setTasks]=useState([]),[buckets,setBuckets]=useState([]),[settings,setSettings]=useState(DEF_SETTINGS);
   const [actions,setActions]=useState(DEFAULT_ACTIONS),[activeAction,setActiveAction]=useState("all"),[showActions,setShowActions]=useState(false);
   const [brands,setBrands]=useState([]),[showBrands,setShowBrands]=useState(false);
+  const [labels,setLabels]=useState([]),[showLabels,setShowLabels]=useState(false);
+  const [showImport,setShowImport]=useState(false);
   const [persons,setPersons]=useState([]),[showPersons,setShowPersons]=useState(false);
   const [editing,setEditing]=useState(null),[editingRef,setEditingRef]=useState(null),[showSettings,setShowSettings]=useState(false),[showBuckets,setShowBuckets]=useState(false),[showMembers,setShowMembers]=useState(false);
   const [activeTab,setActiveTab]=useState("all"),[viewMode,setViewMode]=useState("day"),[draggingId,setDraggingId]=useState(null);
@@ -2936,6 +3225,7 @@ function MainApp({user,board,onBack,onSignOut}){
         if(sr.data.actions_json){try{setActions(JSON.parse(sr.data.actions_json));}catch{setActions(DEFAULT_ACTIONS);}}
         if(sr.data.brands_json){try{setBrands(JSON.parse(sr.data.brands_json));}catch{}}
         if(sr.data.persons_json){try{setPersons(JSON.parse(sr.data.persons_json));}catch{}}
+        if(sr.data.labels_json){try{setLabels(JSON.parse(sr.data.labels_json));}catch{}}
       }
       setLoading(false);
       subRef.current=sub=db.channel(`board-${board.id}`)
@@ -3131,14 +3421,14 @@ function MainApp({user,board,onBack,onSignOut}){
     }
   };
 
-  const savePersons=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setPersons(sorted);setShowPersons(false);await db.from("board_settings").upsert({board_id:board.id,persons_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveBrands=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setBrands(sorted);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveActions=async list=>{
+  const savePersons=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setPersons(sorted);setShowPersons(false);await db.from("board_settings").upsert({board_id:board.id,persons_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveBrands=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setBrands(sorted);setShowBrands(false);await db.from("board_settings").upsert({board_id:board.id,brands_json:JSON.stringify(list)},{onConflict:'board_id'});};const saveLabels=async list=>{const sorted=[...list].sort((a,b)=>a.label.localeCompare(b.label));setLabels(sorted);setShowLabels(false);await db.from('board_settings').upsert({board_id:board.id,labels_json:JSON.stringify(sorted)},{onConflict:'board_id'});};const saveActions=async list=>{
     setActions(list);setShowActions(false);
     await db.from("board_settings").upsert({board_id:board.id,actions_json:JSON.stringify(list)},{onConflict:'board_id'});
   };
 
   const dispKey=`dc_disp_${user.id}_${board.id}`;
-  const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
-    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions),brands_json:JSON.stringify(brands),persons_json:JSON.stringify(persons)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
+  const importTasks=async rows=>{setSyncing(true);const mapped=rows.map(t=>t2db(t,board.id));for(const r of mapped){await db.from('tasks').insert(r);}const{data}=await db.from('tasks').select('*').eq('board_id',board.id);if(data)setTasks(data.map(dbToTask));setSyncing(false);};const saveSettings=async s=>{setSettings(s);setDayStartMins(timeStrToMins(s.dayStartTime||'00:30'));try{localStorage.setItem(dispKey,JSON.stringify(s));}catch{}
+    const{error:se}=await db.from("board_settings").upsert({board_id:board.id,hide_empty_do:s.hideEmptyDo,default_view:s.defaultView||"day",day_start_time:s.dayStartTime||'00:30',hide_time_frames:s.hideTimeFrames||false,show_action_tag:s.showActionTag||false,show_bucket_color:s.showBucketColor!==false,show_card_bg:s.showCardBg!==false,show_duration:s.showDuration!==false,show_frequency:s.showFrequency!==false,actions_json:JSON.stringify(actions),brands_json:JSON.stringify(brands),persons_json:JSON.stringify(persons),labels_json:JSON.stringify(labels)},{onConflict:'board_id'});if(se)console.error('saveSettings error',se);};
 
   const handleDragStart=useCallback(id=>setDraggingId(id),[]);
   const handleDrop=async targetId=>{
@@ -3251,6 +3541,7 @@ function MainApp({user,board,onBack,onSignOut}){
         <HourlyCalendar tasks={tasks} buckets={buckets} onEdit={setEditing} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} sb={activeTab==="all"} onAddTask={addTask} hideTimeFrames={settings.hideTimeFrames} dayFilter={dayFilter} activeTab={activeTab} allBuckets={buckets}/>
       </div>}
       {viewMode==="day"&&<DayView tasks={vis} buckets={buckets} activeTab={activeTab} onEdit={setEditing} onDelete={delTask} onCheck={checkTask} readOnly={readOnly} celebratingIds={celebratingIds} onAddTask={addTask} boardId={board.id} hideTimeFrames={settings.hideTimeFrames} onOpenModal={()=>setShowQuickAdd(true)}/>}
+      {viewMode==="monthly"&&<MonthlyView tasks={tasks} buckets={buckets} onEdit={handleEdit} celebratingIds={celebratingIds}/>}
       {viewMode==="taba"&&<TabataView tasks={tasks} onCheck={checkTask} onEdit={setEditing} celebratingIds={celebratingIds}/>}
       {viewMode==="health"&&<HealthView tasks={tasks} buckets={buckets} onEdit={setEditing} activeTab={activeTab} childBucketIds={childBucketIds}/>}
       {viewMode==="dash"&&<DashboardView tasks={tasks} buckets={buckets} onEdit={handleEdit} onCheck={checkTask} celebratingIds={celebratingIds} readOnly={readOnly}/>}
@@ -3284,7 +3575,7 @@ function MainApp({user,board,onBack,onSignOut}){
         </div>
       </div>
 
-      {showSidebar&&<Sidebar viewMode={viewMode} onView={setViewMode} onClose={()=>setShowSidebar(false)} onBack={onBack} onSettings={()=>setShowSettings(true)} onDisplay={()=>setShowDisplay(true)} onStats={()=>setShowStats(true)} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} board={board}/>}
+      {showSidebar&&<Sidebar viewMode={viewMode} onView={setViewMode} onClose={()=>setShowSidebar(false)} onBack={onBack} onSettings={()=>setShowSettings(true)} onDisplay={()=>setShowDisplay(true)} onStats={()=>setShowStats(true)} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} onLabels={()=>setShowLabels(true)} onImport={()=>setShowImport(true)} board={board}/>}
       {showQuickAdd&&(
         <QuickAddModal
           boardId={board.id}
@@ -3293,7 +3584,7 @@ function MainApp({user,board,onBack,onSignOut}){
           onClose={()=>setShowQuickAdd(false)}
         />
       )}
-      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} persons={persons} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} onDuplicate={duplicateTask} onOpenRef={r=>{setEditing(null);setEditingRef(r);}} readOnly={readOnly}/>}
+      {editing&&<EditMdl task={editing} tasks={tasks} buckets={buckets} actions={actions} brands={brands} persons={persons} labels={labels} onSave={saveTask} onClose={()=>setEditing(null)} onDelete={delTask} onDuplicate={duplicateTask} onOpenRef={r=>{setEditing(null);setEditingRef(r);}} readOnly={readOnly}/>}
       {editingRef&&<RefCardModal task={editingRef} onSave={saveRef} onClose={()=>setEditingRef(null)} onMore={t=>{setEditingRef(null);setEditing(t);}} readOnly={readOnly}/>}
       {showSearch&&<SearchMdl tasks={tasks} boards={null} allMode={false} onSelectTask={t=>{setShowSearch(false);handleEdit(t);}} onClose={()=>setShowSearch(false)}/>}
       {showSettings&&<SettingsMdl settings={settings} onChange={saveSettings} onBuckets={()=>setShowBuckets(true)} onActions={()=>setShowActions(true)} onBrands={()=>setShowBrands(true)} onPersons={()=>setShowPersons(true)} onMembers={()=>setShowMembers(true)} onClose={()=>setShowSettings(false)} boardName={board.name} userRole={userRole} onCleanSort={cleanSort} onBoardSort={boardSort} onSnoozeOverdue={snoozeAllOverdue} onTabata={()=>setViewMode("taba")} onSync={forceRefresh} syncing={syncing} onShowLog={()=>setShowLog(true)}
@@ -3314,6 +3605,8 @@ function MainApp({user,board,onBack,onSignOut}){
       {showBuckets&&<BucketMgr buckets={buckets} onSave={saveBuckets} onClose={()=>setShowBuckets(false)}/>}
       {showBrands&&<BrandMgrView brands={brands} onSave={saveBrands} onClose={()=>setShowBrands(false)}/>}
       {showPersons&&<PersonMgrView persons={persons} onSave={savePersons} onClose={()=>setShowPersons(false)}/>}
+      {showLabels&&<LabelsMgrView labels={labels} onSave={saveLabels} onClose={()=>setShowLabels(false)}/>}
+      {showImport&&<ImportModal boardId={board.id} buckets={buckets} onImport={importTasks} onClose={()=>setShowImport(false)}/>}
       {showActions&&<ActionMgr actions={actions} onSave={saveActions} onClose={()=>setShowActions(false)}/>}
       {showMembers&&<MembersModal board={board} userRole={userRole} currentUser={user} onClose={()=>setShowMembers(false)}/>}
     </div>
