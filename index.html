@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#000000"/>
-<title>DayCrush v2.39</title>
+<title>DayCrush v2.40</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -2177,7 +2177,7 @@ function DurationView({tasks,buckets,actions,brands,persons,labels,activeTab,onE
     if(durBrandF!=="all"&&(t.brand||"")!==durBrandF)return false;
     if(durGamedayF!=="all"&&(t.gameday||"")!==durGamedayF)return false;
     if(durPersonF!=="all"&&(t.person||"")!==durPersonF)return false;
-    if(durLabelsF.length>0&&!durLabelsF.every(lid=>(t.labels||[]).includes(lid)))return false;
+    if(durLabelsF.length>0&&!(t.labels||[]).includes(durLabelsF[0]))return false;
     return true;
   });
   const withDur=[...filtered.filter(t=>t.duration&&parseInt(t.duration)>0)].sort((a,b)=>parseInt(a.duration)-parseInt(b.duration));
@@ -2284,6 +2284,15 @@ function DurationView({tasks,buckets,actions,brands,persons,labels,activeTab,onE
       Object.values(otherMap).forEach(v=>grps.push({key:"freq-oth-"+v.lbl,label:v.lbl||"Other",color:"#FF9F0A",items:v.items,extra:null}));
       return grps;
     }
+    if(groupBy==="person"){
+      const pMap={};
+      filtered.forEach(t=>{const k=t.person||"";if(!pMap[k])pMap[k]=[];pMap[k].push(t);});
+      return Object.keys(pMap).sort((a,b)=>(a||"zzz").localeCompare(b||"zzz")).map(k=>{
+        const pr=(persons||[]).find(x=>x.label===k);
+        const items=[...pMap[k]].sort((a,b)=>parseInt(a.duration||0)-parseInt(b.duration||0));
+        return{key:`per-${k||"none"}`,label:k?(pr?`${pr.emoji} ${k}`:k):"No Person",color:"#4ECDC4",items,extra:null};
+      });
+    }
     return[];
   };
   const groups=buildGroups();
@@ -2308,6 +2317,7 @@ function DurationView({tasks,buckets,actions,brands,persons,labels,activeTab,onE
           <option value="action">Action</option>
           <option value="bucket">Bucket</option>
           <option value="priority">Priority</option>
+          <option value="person">Person</option>
         </select>
         <select value={durDateF} onChange={e=>setDurDateF(e.target.value)} style={selStyle}>
           <option value="all">All Dates</option>
@@ -2354,21 +2364,10 @@ function DurationView({tasks,buckets,actions,brands,persons,labels,activeTab,onE
           <option value="all">All People</option>
           {usedPersons.map(p=>{const pr=(persons||[]).find(x=>x.label===p);return<option key={p} value={p}>{pr?`${pr.emoji} `:""}{p}</option>;})}
         </select>}
-        {allLabels.length>0&&(
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}>
-            <span style={{fontSize:11,color:MUTED,fontWeight:600,letterSpacing:.4,flexShrink:0}}>LABELS</span>
-            {allLabels.map(l=>{
-              const active=durLabelsF.includes(l.id);
-              return(
-                <button key={l.id} onClick={()=>setDurLabelsF(prev=>active?prev.filter(x=>x!==l.id):[...prev,l.id])}
-                  style={{padding:"3px 8px",borderRadius:99,border:`1px solid ${active?"#5E5CE6":BORDER}`,background:active?"#1a1a2a":"transparent",color:active?"#8E8EF0":MUTED,fontSize:11,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:3}}>
-                  {l.emoji} {l.label}
-                </button>
-              );
-            })}
-            {durLabelsF.length>0&&<button onClick={()=>setDurLabelsF([])} style={{fontSize:10,color:"#FF453A",background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>×clear</button>}
-          </div>
-        )}
+        {allLabels.length>0&&<select value={durLabelsF[0]||""} onChange={e=>{const v=e.target.value;setDurLabelsF(v?[v]:[]);}} style={selStyle}>
+          <option value="">All Labels</option>
+          {allLabels.map(l=><option key={l.id} value={l.id}>{l.emoji} {l.label}</option>)}
+        </select>}
         {totalMin>0&&<span style={{marginLeft:"auto",fontSize:11,color:MUTED}}>⏱ <span style={{color:TEXT,fontWeight:700}}>{fmtMin(totalMin)}</span> · {withDur.length} tasks</span>}
       </div>
       {/* Task list */}
@@ -2604,32 +2603,39 @@ function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
   const now=etNow();
   const nm=now.getHours()*60+now.getMinutes();
   const dateLbl=now.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
-  // Overdue: past date tasks (any status, done=false)
-  const overdue=tasks.filter(t=>!t.isRef&&t.dueDate&&daysDiff(t.dueDate)<0&&!t.done&&!celebratingIds.has(t.id)).sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||""));
+  // Helper: exclude if done and NOT currently celebrating (celebrating = show green then vanish)
+  const excl=t=>t.isRef||(t.done&&!celebratingIds.has(t.id));
+  // Overdue: past date tasks
+  const overdue=tasks.filter(t=>!excl(t)&&t.dueDate&&daysDiff(t.dueDate)<0).sort((a,b)=>(a.dueDate||"").localeCompare(b.dueDate||""));
   // Missed Today: timed tasks from today whose scheduled time already passed
   const missedToday=tasks.filter(t=>{
-    if(t.isRef||t.done||celebratingIds.has(t.id))return false;
-    if(t.status==="inprogress")return false;
+    if(excl(t))return false;
     return t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)<nm;
   }).sort((a,b)=>t2m(a.time)-t2m(b.time));
-  // Do Now: in-progress one-offs + timed tasks in next 2h + untimed tasks due today
+  // Do Now: in-progress one-offs + timed tasks in next 2h (NO untimed tasks)
   const doNow=tasks.filter(t=>{
-    if(t.isRef||t.done||celebratingIds.has(t.id))return false;
+    if(excl(t))return false;
     if(missedToday.find(x=>x.id===t.id))return false;
-    // in-progress one-offs
+    // in-progress one-offs always show here
     if(t.status==="inprogress"&&!(t.frequency&&t.frequency.trim()))return true;
     if(!t.dueDate||daysDiff(t.dueDate)!==0)return false;
-    // untimed today tasks (including annual @ 6am that already passed go to missed)
-    if(!t.time)return true;
-    // timed today within next 2h
+    if(!t.time)return false; // untimed tasks go to "Later Today" only
     return t2m(t.time)>=nm&&t2m(t.time)<=nm+120;
   }).sort((a,b)=>{const at=a.time?t2m(a.time):9999,bt=b.time?t2m(b.time):9999;return at-bt;});
   // Do In A Few Hours: 2-6h from now (timed only)
   const doSoon=tasks.filter(t=>{
-    if(t.isRef||t.done||celebratingIds.has(t.id))return false;
+    if(excl(t))return false;
     if(doNow.find(x=>x.id===t.id)||missedToday.find(x=>x.id===t.id))return false;
     return t.dueDate&&daysDiff(t.dueDate)===0&&t.time&&t2m(t.time)>nm+120&&t2m(t.time)<=nm+360;
   }).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  // Later Today: ALL remaining today tasks not in any other bucket (timed + untimed)
+  const laterToday=tasks.filter(t=>{
+    if(excl(t))return false;
+    if(!t.dueDate||daysDiff(t.dueDate)!==0)return false;
+    if(overdue.find(x=>x.id===t.id)||missedToday.find(x=>x.id===t.id))return false;
+    if(doNow.find(x=>x.id===t.id)||doSoon.find(x=>x.id===t.id))return false;
+    return true; // everything else due today
+  }).sort((a,b)=>{const at=a.time?t2m(a.time):9999,bt=b.time?t2m(b.time):9999;return at-bt;});
 
   const DashCard=({t,color})=>{
     const bkt=buckets.find(b=>b.id===t.bucketId);
@@ -2698,6 +2704,34 @@ function DashboardView({tasks,buckets,onEdit,onCheck,celebratingIds,readOnly}){
         {missedToday.length>0&&<Section title="Should've Done Earlier Today" color="#FF6B6B" icon="⏱" items={missedToday} emptyMsg="" showEmpty={false}/>}
         <Section title="Do Now" subtitle="next 2 hours + in progress" color="#FF9F0A" icon="⏰" items={doNow} emptyMsg="Nothing urgent in the next 2 hours" showEmpty={true}/>
         {doSoon.length>0&&<Section title="Do In A Few Hours" subtitle="2 – 6 hours" color="#5E5CE6" icon="◷" items={doSoon} emptyMsg="" showEmpty={false}/>}
+        {laterToday.length>0&&(
+          <div style={{marginTop:8,paddingTop:16,borderTop:`1px solid #1a1a1a`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:11,fontWeight:700,color:"#2a2a2a",letterSpacing:.8,textTransform:"uppercase"}}>Later Today</span>
+              <div style={{flex:1,height:1,background:"#151515"}}/>
+              <span style={{fontSize:10,color:"#2a2a2a",background:"#111",padding:"1px 6px",borderRadius:99}}>{laterToday.length}</span>
+            </div>
+            {laterToday.map(t=>{
+              const bkt=buckets.find(b=>b.id===t.bucketId);
+              const isDone=t.done||celebratingIds.has(t.id);
+              return(
+                <div key={t.id} onClick={()=>onEdit(t)}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,marginBottom:4,background:"#0a0a0a",border:"1px solid #111",cursor:"pointer",opacity:isDone?.5:.55,transition:"opacity .15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.opacity=isDone?.5:".8"}
+                  onMouseLeave={e=>e.currentTarget.style.opacity=isDone?.5:".55"}>
+                  {!readOnly&&<div onClick={e=>{e.stopPropagation();onCheck(t.id);}} style={{width:14,height:14,borderRadius:3,border:"1.5px solid #333",background:isDone?"#30D158":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                    {isDone&&<span style={{color:"#000",fontSize:7,fontWeight:900,lineHeight:1}}>✓</span>}
+                  </div>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,color:isDone?"#30D158":"#444",textDecoration:isDone?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title||"Untitled"}</div>
+                    {bkt&&<span style={{fontSize:9,color:"#2a2a2a"}}>{bkt.emoji} {bkt.label}</span>}
+                  </div>
+                  {t.time&&<div style={{fontSize:12,fontWeight:700,color:"#2a2a2a",flexShrink:0}}>{fmtTime(t.time)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3682,6 +3716,7 @@ function MainApp({user,board,onBack,onSignOut}){
         <div style={{display:"flex",alignItems:"stretch",height:54}}>
           {[
             {id:"inbox",icon:"⊟",label:"Inbox"},
+            {id:"dash",icon:"◈",label:"Dash"},
             {id:"cal",icon:"▦",label:"Calendar"},
             {id:"day",icon:"⏱",label:"Timeline"},
             {id:"board",icon:"⊞",label:"Board"},
